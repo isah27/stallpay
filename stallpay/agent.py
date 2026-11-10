@@ -9,6 +9,7 @@ from typing import Any
 
 from . import config
 from .checker import check_order
+from .languages import normalize_language
 from .limits import attach_usage_note
 from .llm_client import LlmError, complete
 from .models import LineItem, ProposedOrder
@@ -31,19 +32,23 @@ INTENT_RE = re.compile(
     r"de acuerdo|trato hecho|lo tomo|las tomo|lo quiero|las quiero|"
     r"quiero (comprarlo|comprarlos|llevarmelo|llevarlo|llevarlos)|"
     r"vale,? lo (pago|tomo)|pagar[eé]|"
-    r"theek hai|haan le (leti|lunga)|le lunga|le leti|main le (leti|lunga)"
+    r"theek hai|haan le (leti|lunga)|le lunga|le leti|main le (leti|lunga)|"
+    r"d'accord|c'est d'accord|je (le |les |l')?(prends|prendrai|achete|achète|achèterai)|"
+    r"je vais (le |les |l')?(prendre|acheter)|oui je (le |les )?(prends|veux)"
     r")\b",
     re.IGNORECASE,
 )
 
-SOFT_YES_RE = re.compile(r"\b(yes|sí|si|haan|han|ok|okay|vale)\b", re.IGNORECASE)
+SOFT_YES_RE = re.compile(r"\b(yes|sí|si|haan|han|ok|okay|vale|oui)\b", re.IGNORECASE)
 
 BARGAIN_RE = re.compile(
     r"\b(last price|last last|lowball|discount|cheaper|reduce|come down|"
     r"too (much|expensive)|abeg make it|i go pay|te doy|es mi oferta|"
     r"por favor.*pesos|solo tengo|only (have|got)|ignore the (floor|price|promo)|"
     r"desobedece|floor price ko ignore|kitna kam|final price|otherwise i walk|"
-    r"take it or i walk|honou?r it|honou?r am)\b",
+    r"take it or i walk|honou?r it|honou?r am|"
+    r"moins cher|trop (cher|co[uû]teux)|je vous donne|c'est mon offre|une remise|"
+    r"baisse(r)? (le )?prix)\b",
     re.IGNORECASE,
 )
 
@@ -209,15 +214,25 @@ def start_session(shop_id: str, language: str | None = None) -> ChatSession:
     shop = get_shop(shop_id)
     if not shop:
         raise KeyError(f"Unknown shop {shop_id}")
+    chosen = normalize_language(language, default="en")
     session = ChatSession(
         id="chat-" + secrets.token_hex(4),
         shop_id=shop.id,
-        language=language or shop.language,
+        language=chosen,
         buyer_name=shop.default_buyer_name,
         buyer_email=shop.default_buyer_email,
     )
-    session.messages.append(ChatTurn("seller", shop.greeting))
+    session.messages.append(ChatTurn("seller", shop.greeting_for(chosen)))
     _SESSIONS[session.id] = session
+    return session
+
+
+def set_session_language(session: ChatSession, language: str | None) -> ChatSession:
+    chosen = normalize_language(language, default="en")
+    session.language = chosen
+    greeting = session.shop.greeting_for(chosen)
+    if session.messages and session.messages[0].role == "seller":
+        session.messages[0] = ChatTurn("seller", greeting)
     return session
 
 
@@ -241,7 +256,8 @@ def handle_buyer_message(
         return {"reply": reply, "session": session.to_public(), "invoice_ready": False}
 
     session.messages.append(ChatTurn("buyer", text))
-    session.language = detect_language(text, session.language, session.shop.language)
+    # Reply language follows the buyer's picker, default English.
+    # Typed language is still understood for selection, bargaining, and agreement.
     selected = _update_selection(session, text, item_id=item_id)
     selling = session.selling_total()
     if selling is not None:
@@ -360,7 +376,7 @@ def _mentions_multiple(found: list[CatalogItem], text: str) -> bool:
 
 
 def _extract_quantity(text: str) -> Decimal | None:
-    match = re.search(r"\b(\d+)\s+(yards?|pcs|pieces|packs?|units?|scarves|shirts?|aretes|aros|gele|stoles?|scarfs?)\b", text or "", re.I)
+    match = re.search(r"\b(\d+)\s+(yards?|pcs|pieces|packs?|units?|scarves|shirts?|aretes|aros|gele|stoles?|scarfs?|earrings?|cuffs?|dupattas?|headwraps?|bracelets?)\b", text or "", re.I)
     if match:
         from .money import parse_amount
 
@@ -448,6 +464,7 @@ def _price_line(session: ChatSession) -> str:
                 "pcm": f" The promo end {ends}.",
                 "es": f" La promo termina {ends}.",
                 "hi": f" Promo {ends} tak chalega.",
+                "fr": f" La promo se termine {ends}.",
             }.get(lang, f" The promo ends {ends}.")
         return {
             "pcm": (
@@ -462,6 +479,10 @@ def _price_line(session: ChatSession) -> str:
                 f"{item_names} normally {format_money(listed, currency)} hai, "
                 f"lekin abhi promo chal raha hai, isliye {format_money(selling, currency)}.{ends_bit}"
             ),
+            "fr": (
+                f"{item_names} coûte normalement {format_money(listed, currency)}, "
+                f"mais une promo est en cours, donc c'est {format_money(selling, currency)}.{ends_bit}"
+            ),
         }.get(lang, (
             f"{item_names} is normally {format_money(listed, currency)}, "
             f"but we have a promo running, so it's {format_money(selling, currency)}.{ends_bit}"
@@ -470,6 +491,7 @@ def _price_line(session: ChatSession) -> str:
         "pcm": f"{item_names} na {format_money(selling, currency)}.",
         "es": f"{item_names} cuestan {format_money(selling, currency)}.",
         "hi": f"{item_names} ka price {format_money(selling, currency)} hai.",
+        "fr": f"{item_names} coûte {format_money(selling, currency)}.",
     }.get(lang, f"{item_names} is {format_money(selling, currency)}.")
 
 
@@ -490,6 +512,7 @@ def _scripted_reply(
             "pcm": f"Na deal. {_item_phrase(session)} for {format_money(selling, currency)}. I go raise the PayPal invoice now.",
             "es": f"Trato hecho. {_item_phrase(session)} por {format_money(selling, currency)}. Creo la factura de PayPal ahora.",
             "hi": f"Theek hai, deal ho gaya. {_item_phrase(session)} {format_money(selling, currency)} mein. Main ab PayPal invoice bhejti hoon.",
+            "fr": f"D'accord. {_item_phrase(session)} pour {format_money(selling, currency)}. Je crée la facture PayPal maintenant.",
         }.get(lang, f"Deal. {_item_phrase(session)} for {format_money(selling, currency)}. I'll create the PayPal invoice now.")
 
     if not session.item_ids:
@@ -498,6 +521,7 @@ def _scripted_reply(
             "pcm": f"Which one you wan? {names}?",
             "es": f"¿Cuál te gusta? Tengo {names}.",
             "hi": f"Kaunsa item chahiye? {names}.",
+            "fr": f"Quel article souhaitez-vous ? J'ai {names}.",
         }.get(lang, f"Which item would you like? I have {names}.")
 
     if bargaining and selling is not None:
@@ -507,17 +531,20 @@ def _scripted_reply(
                 "pcm": f"That promo price na the best I fit do already. {_price_line(session)} If you wan am, just tell me clearly say you wan buy.",
                 "es": f"Ese precio de promo ya es el mejor que puedo hacer. {_price_line(session)} Si lo quieres, dímelo claro.",
                 "hi": f"Yeh promo price already best price hai. {_price_line(session)} Agar lena hai to clearly haan bol do.",
+                "fr": f"Ce prix promo est déjà le meilleur que je puisse faire. {_price_line(session)} Si vous le voulez, dites clairement que vous souhaitez l'acheter.",
             }.get(lang, f"That promo price is already the best price I can do. {_price_line(session)} If you want it, just say clearly that you want to buy it.")
         return {
             "pcm": f"The price na {format_money(selling, currency)}, I no fit come down. If you wan am, just tell me say you wan buy.",
             "es": f"El precio es {format_money(selling, currency)}, no puedo bajarlo. Si lo quieres, dímelo claro.",
             "hi": f"Price {format_money(selling, currency)} hai, main kam nahi kar sakti. Agar lena hai to clearly haan bol do.",
+            "fr": f"Le prix est {format_money(selling, currency)} — je ne peux pas descendre. Si vous le voulez, dites clairement que vous souhaitez l'acheter.",
         }.get(lang, f"The price is {format_money(selling, currency)} — I can't go lower. If you want it, just say clearly that you want to buy it.")
 
     ask = {
         "pcm": " If e catch you, tell me say you wan buy am.",
         "es": " Si te encaja, dime que lo quieres.",
         "hi": " Agar lena hai to clearly haan bol do.",
+        "fr": " Si cela vous convient, dites simplement que vous souhaitez l'acheter.",
     }.get(lang, " If you want it, just say that you'd like to buy it.")
     return _price_line(session) + ask
 
@@ -528,6 +555,7 @@ def _already_closed_reply(session: ChatSession) -> str:
         "pcm": f"We done close this one at {format_money(offer, session.shop.currency)}. Use the pay link, or refresh to see if e don pay.",
         "es": f"Este trato ya está cerrado en {format_money(offer, session.shop.currency)}. Usa el enlace de pago, o actualiza el estado.",
         "hi": f"Yeh deal {format_money(offer, session.shop.currency)} par close ho chuki hai. Pay link use karo, ya status refresh karo.",
+        "fr": f"Cette vente est déjà close à {format_money(offer, session.shop.currency)}. Utilisez le lien de paiement, ou actualisez pour voir si le paiement est passé.",
     }.get(session.language, f"This deal is already closed at {format_money(offer, session.shop.currency)}. Use the pay link, or refresh to see the payment status.")
 
 
@@ -570,7 +598,8 @@ def _llm_reply(session: ChatSession) -> str | None:
         promo_note = "No active promo is configured for the selected item. State the list price only. Never invent a discount or a deadline. "
     system = (
         f"You are {shop.seller_name}, a {shop.seller_title} at {shop.name} in {shop.city}, {shop.country}. "
-        f"{shop.tone} Reply in the buyer's language (current tag: {session.language}). "
+        f"{shop.tone} Reply only in the language the buyer selected in the language picker "
+        f"(tag: {session.language}). Do not switch language just because the buyer typed in another language. "
         f"This is a shop, not a haggling stall. You must never offer, accept, or invent a price other than "
         f"the list price or an active configured promo price. "
         f"The only price the buyer can pay is {format_money(selling, shop.currency) if selling is not None else 'not set yet'}. "

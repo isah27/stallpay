@@ -300,3 +300,19 @@ a { color: var(--green-dark); }
   .chat-form { position: sticky; bottom: 0; background: var(--card); padding-top: 0.4rem; }
   .chat-head { align-items: center; }
 }
+
+.buyer-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.lang-picker { margin: 0; font-weight: 500; }
+.lang-picker select {
+  font: inherit;
+  font-size: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0.35rem 0.85rem;
+  min-height: 36px;
+  width: auto;
+  cursor: pointer;
+}
+.lang-picker select:focus { outline: 2px solid var(--green-dark); border-color: var(--green-dark); }

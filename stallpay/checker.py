@@ -242,9 +242,11 @@ def _quote_covers_items(quote: str, order: ProposedOrder) -> bool:
     if mentioned == len(order.items):
         return True
     others = (
-        "leather cuff", "brazalete de cuero", "brazalete", "native shirt", "ankara",
-        "gele", "block-print scarf", "scarf", "cotton stole", "stole",
-        "aretes de aro", "aretes", "earrings",
+        "leather cuff", "leather cuff (brazalete)", "brazalete de cuero", "brazalete",
+        "native shirt", "ankara", "gele (headwrap)", "gele", "headwrap",
+        "block-print scarf", "block-print scarf (dupatta)", "scarf", "dupatta",
+        "cotton stole", "stole", "aretes de aro", "aretes",
+        "silver hoop earrings", "silver hoop earrings (aretes)", "earrings",
     )
     ordered_names = " ".join(_norm_text(item.name) for item in order.items)
     named_other = any(other in lowered and other not in ordered_names for other in others)

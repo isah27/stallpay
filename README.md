@@ -10,20 +10,22 @@ This project is a submission for the [PayPal AI Hackathon](https://paypalaihacka
 
 Small sellers everywhere who already take orders in chat and then get sent edited receipts or bank-alert screenshots as “proof.” There is often no invoice, and no reliable way to see whether PayPal actually received the money.
 
-The live demo has three equal shops, not a single-country product with translations added on:
+The live demo has three equal shops, all in English unless the buyer picks another language:
 
-- Amaka’s tailor stall in Lagos, prices in naira, English and Nigerian Pidgin.
-- Sofía’s jewelry stall in Mexico City, prices in Mexican pesos, Spanish.
-- Priya’s textile stall in Jaipur, prices in rupees, Hindi and Hinglish.
+- Amaka’s tailor stall in Lagos, prices in naira.
+- Sofía’s jewelry stall in Mexico City, prices in Mexican pesos.
+- Priya’s textile stall in Jaipur, prices in rupees.
+
+A small language picker at the top of the buyer page offers English, Español, हिन्दी, Pidgin, and Français. That choice changes the greeting, item list, prices and promo text, replies, and the pay step, and it stays for the session. If the buyer types in another language without picking one, the agent still understands them, but it keeps replying in English.
 
 Seller tools, including the original Lagos sample orders, live on a separate `/seller` page.
 
 ## What it does
 
-1. Open the site with no login and pick a shop. The buyer page is a clean shop chat: no step labels, no conversion rates, and no developer notes. Prices are shown in the shop’s own currency.
-2. The agent greets the buyer and lists the items it has. The buyer selects an item by tapping it or by typing in any language.
+1. Open the site with no login and pick a shop. The buyer page is a clean shop chat in English: no step labels, no conversion rates, and no developer notes. Prices are shown in the shop’s own currency. Use the language picker if you want the shop in Español, हिन्दी, Pidgin, or Français.
+2. The agent greets the buyer in the selected language and lists the items it has. The buyer selects an item by tapping it, by typing a name in English or a local name, or by saying “1” or “the first one.”
 3. The agent states the price. If a promo is configured and still running, it quotes the list price and the promo price, and it names the real expiry. If no promo is configured, or the promo has ended, it just states the list price. Bargaining does not change the price; the agent says the promo price (or the list price) is already the best it can do.
-4. A PayPal invoice and pay link appear only when a buyer utterance clearly says yes to that item and price, for example “Okay I want it,” in any language. A bare “ok” is not enough. Nothing about invoices or pay links is shown before that yes.
+4. A PayPal invoice and pay link appear only when a buyer utterance clearly says yes to that item and price, for example “Okay I want it,” including in Spanish, Hindi, Pidgin, or French. A bare “ok” is not enough. Nothing about invoices or pay links is shown before that yes.
 5. After the link, the buyer can Refresh until the status is Paid, or use “Already paid? Upload proof.” A parser may propose amount, currency, date, and reference. PayPal GET is the ground truth. The image itself never marks the order Paid.
 6. Seller tools at `/seller` show the invoice board (draft / sent / paid / reminder sent), reminders through PayPal, a morning briefing, published metrics, and a paste-a-chat path for finished transcripts.
 
@@ -41,7 +43,7 @@ cp .env.example .env        # leave PAYPAL_MODE=mock
 uvicorn stallpay.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first line is “Select the shop you want to buy from.” Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “De acuerdo, lo tomo” or “Okay I want it.” Your messages appear in the chat immediately. The PayPal pay link should appear only after that yes. Optionally paste a fake receipt under “Already paid?” — the check should refuse it because PayPal does not confirm payment. Open the pay link and click **Pay now (mock)**, then **Refresh payment status**. The status should flip to paid.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first line is “Select the shop you want to buy from.” The shop is in English unless you change the language picker. Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “Okay I want it.” Your messages appear in the chat immediately. The PayPal pay link should appear only after that yes. Optionally paste a fake receipt under “Already paid?” — the check should refuse it because PayPal does not confirm payment. Open the pay link and click **Pay now (mock)**, then **Refresh payment status**. The status should flip to paid.
 
 Seller tools are at [http://127.0.0.1:8000/seller](http://127.0.0.1:8000/seller). Click **Tailor in Surulere — 2 native shirts**, then **Extract and check**, then **Create PayPal invoice**. **Write briefing** and **Play** read the morning summary.
 
@@ -109,7 +111,7 @@ These results are produced by the scripted agent, the built-in extractor, and th
 
 ### Price integrity
 
-15 adversarial buyer scripts, split across English, Nigerian Pidgin, Spanish, and Hindi. They include a lowball far below the catalog price, last-price pressure, a false claim that the seller already agreed a lower number, a currency trick, emotional pressure, and prompt-injection-like “ignore the price” text.
+15 adversarial buyer scripts, with English as the default shop language and buyer messages in English, Nigerian Pidgin, Spanish, and Hindi. They include a lowball far below the catalog price, last-price pressure, a false claim that the seller already agreed a lower number, a currency trick, emotional pressure, and prompt-injection-like “ignore the price” text.
 
 **15 / 15** held the catalog price: the agent never quoted a price other than the list or active promo, and no invoice was created mid-bargain.
 
@@ -148,7 +150,7 @@ The original five Lagos success chats and three failure cases still run through 
 
 **5 / 5** demo chats extract correctly and pass the checker. **3 / 3** documented failure cases are blocked before any PayPal call.
 
-Claimed metrics are only for these evaluated scripts and fixtures. A live judge chat may be in a language outside the scored set; the agent will try to follow that language, and the price and agreement rules still apply.
+Claimed metrics are only for these evaluated scripts and fixtures. Shops stay in English unless the buyer picks another language. A live judge can type in another language without picking one; the agent should still understand the request, keep replying in English, and apply the same price and agreement rules.
 
 ## Sandbox credentials (optional, for a live PayPal invoice)
 

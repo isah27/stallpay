@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import config, db, limits, webhooks
-from .agent import get_session, handle_buyer_message, start_session
+from .agent import get_session, handle_buyer_message, set_session_language, start_session
 from .eval_scripts import evaluate_all
 from .models import ProposedOrder
 from .paypal.factory import make_paypal_client
@@ -161,6 +161,16 @@ async def api_start_chat(request: Request):
         session.buyer_name = str(body["buyer_name"]).strip()
     if body.get("buyer_email"):
         session.buyer_email = str(body["buyer_email"]).strip()
+    return session.to_public()
+
+
+@app.post("/api/chats/{session_id}/language")
+async def api_set_chat_language(session_id: str, request: Request):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Unknown chat session")
+    body = await request.json()
+    set_session_language(session, body.get("language"))
     return session.to_public()
 
 

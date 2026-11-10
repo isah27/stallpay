@@ -55,7 +55,7 @@ Optional model drafts multilingual shop replies, structured extraction, receipt 
 ## Testing instructions for judges
 
 1. Open https://stallpay.onrender.com/, or run the README local path in mock mode (no keys required). The first visit after idle time on the free host can take about a minute.
-2. The first line is “Select the shop you want to buy from.” Pick Joyería Sofía. Choose the aretes (tap or type, in any language). Your choice should appear in the chat straight away. Read the list price and the promo, including when it ends. Try to bargain it down; the price should not change. Then say clearly that you want it, for example “De acuerdo, lo tomo” or “Okay I want it.”
+2. The first line is “Select the shop you want to buy from.” The shop is in English unless you change the language picker (English, Español, हिन्दी, Pidgin, or Français). Pick Joyería Sofía. Choose the silver hoop earrings (tap or type, including a local name such as “aretes”). Your choice should appear in the chat straight away. Read the list price and the promo, including when it ends. Try to bargain it down; the price should not change. Then say clearly that you want it, for example “Okay I want it.”
 3. Only then should a PayPal pay link appear. In mock mode, open it and click pay, then Refresh. In live sandbox mode, pay as the Personal sandbox buyer and Refresh until Paid.
 4. Under “Already paid?,” paste a fake bank alert. Confirm that the proof is refused and Refresh does not flip to Paid.
 5. Open Seller tools for the invoice board, Write briefing, and Play.

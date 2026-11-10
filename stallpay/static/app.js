@@ -19,6 +19,187 @@ const proofBtn = document.getElementById('proof-btn');
 const proofResult = document.getElementById('proof-result');
 const openLoader = document.getElementById('open-loader');
 
+const langSelect = document.getElementById('lang-select');
+const shopsHeading = document.getElementById('shops-heading');
+const changeShopBtn = document.getElementById('change-shop-btn');
+const payTitle = document.getElementById('pay-title');
+const payLinkLabel = document.getElementById('pay-link-label');
+const proofTitle = document.getElementById('proof-title');
+const proofHint = document.getElementById('proof-hint');
+const sellerToolsLink = document.getElementById('seller-tools-link');
+const openLoaderText = document.getElementById('open-loader-text');
+const langLabel = document.getElementById('lang-label');
+
+const UI_TEXT = {
+  en: {
+    langLabel: 'Language',
+    shopsHeading: 'Select the shop you want to buy from.',
+    changeShop: 'Change shop',
+    input: 'Write a message…',
+    send: 'Send',
+    yourMessage: 'Your message',
+    payTitle: 'Pay for this order',
+    payLink: 'Pay with PayPal',
+    refresh: 'Refresh payment status',
+    paid: 'Payment received.',
+    waiting: 'Waiting for payment.',
+    proofTitle: 'Already paid?',
+    proofHint: 'Send a photo or the text of your receipt and we’ll check it.',
+    proofPlaceholder: 'Paste your receipt here…',
+    proofBtn: 'Check my payment',
+    opening: 'Opening the shop…',
+    sellerTools: 'Seller tools',
+    shop: 'Shop',
+    you: 'You',
+    openError: 'Could not open that shop. Please try again.',
+    sendError: 'Your message could not be sent. Please try again.',
+    invoiceError: 'We could not create the payment link. Please try again.',
+    refreshError: 'Could not refresh just now. Please try again.',
+    proofNeedDeal: 'The pay link appears after you say you want the item. Then you can send a receipt.',
+    proofError: 'We could not check that receipt.',
+  },
+  es: {
+    langLabel: 'Idioma',
+    shopsHeading: 'Elige la tienda en la que quieres comprar.',
+    changeShop: 'Cambiar de tienda',
+    input: 'Escribe un mensaje…',
+    send: 'Enviar',
+    yourMessage: 'Tu mensaje',
+    payTitle: 'Paga este pedido',
+    payLink: 'Pagar con PayPal',
+    refresh: 'Actualizar el estado del pago',
+    paid: 'Pago recibido.',
+    waiting: 'Esperando el pago.',
+    proofTitle: '¿Ya pagaste?',
+    proofHint: 'Envía una foto o el texto de tu recibo y lo revisamos.',
+    proofPlaceholder: 'Pega tu recibo aquí…',
+    proofBtn: 'Revisar mi pago',
+    opening: 'Abriendo la tienda…',
+    sellerTools: 'Herramientas del vendedor',
+    shop: 'Tienda',
+    you: 'Tú',
+    openError: 'No se pudo abrir esa tienda. Inténtalo de nuevo.',
+    sendError: 'No se pudo enviar tu mensaje. Inténtalo de nuevo.',
+    invoiceError: 'No se pudo crear el enlace de pago. Inténtalo de nuevo.',
+    refreshError: 'No se pudo actualizar ahora. Inténtalo de nuevo.',
+    proofNeedDeal: 'El enlace de pago aparece cuando dices que quieres el artículo. Luego puedes enviar un recibo.',
+    proofError: 'No pudimos revisar ese recibo.',
+  },
+  hi: {
+    langLabel: 'भाषा',
+    shopsHeading: 'Woh shop chunein jahan se aap kharidna chahte hain.',
+    changeShop: 'Shop badlein',
+    input: 'Apna message likhein…',
+    send: 'Bhejein',
+    yourMessage: 'Aapka message',
+    payTitle: 'Is order ka payment karein',
+    payLink: 'PayPal se pay karein',
+    refresh: 'Payment status refresh karein',
+    paid: 'Payment mil gaya.',
+    waiting: 'Payment ka wait ho raha hai.',
+    proofTitle: 'Pehle se pay kar diya?',
+    proofHint: 'Receipt ki photo ya text bhejein, hum check karenge.',
+    proofPlaceholder: 'Apni receipt yahan paste karein…',
+    proofBtn: 'Mera payment check karein',
+    opening: 'Shop khul rahi hai…',
+    sellerTools: 'Seller tools',
+    shop: 'Shop',
+    you: 'Aap',
+    openError: 'Woh shop nahi khul pai. Phir se try karein.',
+    sendError: 'Message nahi ja saka. Phir se try karein.',
+    invoiceError: 'Payment link nahi ban saka. Phir se try karein.',
+    refreshError: 'Abhi refresh nahi ho saka. Phir se try karein.',
+    proofNeedDeal: 'Jab aap clearly haan bolenge tab pay link dikhega. Uske baad receipt bhej sakte hain.',
+    proofError: 'Is receipt ko check nahi kar paye.',
+  },
+  pcm: {
+    langLabel: 'Language',
+    shopsHeading: 'Select the shop wey you wan buy from.',
+    changeShop: 'Change shop',
+    input: 'Write your message…',
+    send: 'Send',
+    yourMessage: 'Your message',
+    payTitle: 'Pay for this order',
+    payLink: 'Pay with PayPal',
+    refresh: 'Refresh payment status',
+    paid: 'Payment don enter.',
+    waiting: 'We dey wait for payment.',
+    proofTitle: 'You don pay?',
+    proofHint: 'Send photo or the text of your receipt, make we check am.',
+    proofPlaceholder: 'Paste your receipt here…',
+    proofBtn: 'Check my payment',
+    opening: 'Shop dey open…',
+    sellerTools: 'Seller tools',
+    shop: 'Shop',
+    you: 'You',
+    openError: 'The shop no open. Abeg try again.',
+    sendError: 'Your message no send. Abeg try again.',
+    invoiceError: 'We no fit create the payment link. Abeg try again.',
+    refreshError: 'E no refresh now. Abeg try again.',
+    proofNeedDeal: 'The pay link go show after you talk say you wan the item. Then you fit send receipt.',
+    proofError: 'We no fit check that receipt.',
+  },
+  fr: {
+    langLabel: 'Langue',
+    shopsHeading: 'Choisissez la boutique où vous souhaitez acheter.',
+    changeShop: 'Changer de boutique',
+    input: 'Écrivez un message…',
+    send: 'Envoyer',
+    yourMessage: 'Votre message',
+    payTitle: 'Régler cette commande',
+    payLink: 'Payer avec PayPal',
+    refresh: 'Actualiser le statut du paiement',
+    paid: 'Paiement reçu.',
+    waiting: 'En attente du paiement.',
+    proofTitle: 'Déjà payé ?',
+    proofHint: 'Envoyez une photo ou le texte de votre reçu, nous le vérifierons.',
+    proofPlaceholder: 'Collez votre reçu ici…',
+    proofBtn: 'Vérifier mon paiement',
+    opening: 'Ouverture de la boutique…',
+    sellerTools: 'Outils vendeur',
+    shop: 'Boutique',
+    you: 'Vous',
+    openError: 'Impossible d’ouvrir cette boutique. Veuillez réessayer.',
+    sendError: 'Votre message n’a pas pu être envoyé. Veuillez réessayer.',
+    invoiceError: 'Impossible de créer le lien de paiement. Veuillez réessayer.',
+    refreshError: 'Actualisation impossible pour le moment. Veuillez réessayer.',
+    proofNeedDeal: 'Le lien de paiement apparaît lorsque vous dites clairement que vous voulez l’article. Vous pourrez ensuite envoyer un reçu.',
+    proofError: 'Nous n’avons pas pu vérifier ce reçu.',
+  },
+};
+
+function currentLang() {
+  const stored = (sessionStorage.getItem('stallpay-lang') || (langSelect && langSelect.value) || 'en').toLowerCase();
+  return UI_TEXT[stored] ? stored : 'en';
+}
+
+function t(key) {
+  const pack = UI_TEXT[currentLang()] || UI_TEXT.en;
+  return pack[key] || UI_TEXT.en[key] || key;
+}
+
+function applyUI() {
+  const lang = currentLang();
+  document.documentElement.lang = lang === 'pcm' ? 'en' : lang;
+  if (langSelect && langSelect.value !== lang) langSelect.value = lang;
+  if (langLabel) langLabel.textContent = t('langLabel');
+  if (shopsHeading) shopsHeading.textContent = t('shopsHeading');
+  if (changeShopBtn) changeShopBtn.textContent = t('changeShop');
+  if (buyerInput) buyerInput.placeholder = t('input');
+  const inputLabel = document.querySelector('label[for="buyer-input"]');
+  if (inputLabel) inputLabel.textContent = t('yourMessage');
+  if (sendChatBtn) sendChatBtn.textContent = t('send');
+  if (payTitle) payTitle.textContent = t('payTitle');
+  if (payLinkLabel) payLinkLabel.textContent = t('payLink');
+  if (refreshBtn) refreshBtn.textContent = t('refresh');
+  if (proofTitle) proofTitle.textContent = t('proofTitle');
+  if (proofHint) proofHint.textContent = t('proofHint');
+  if (proofText) proofText.placeholder = t('proofPlaceholder');
+  if (proofBtn) proofBtn.textContent = t('proofBtn');
+  if (openLoaderText) openLoaderText.textContent = t('opening');
+  if (sellerToolsLink) sellerToolsLink.textContent = t('sellerTools');
+}
+
 let session = null;
 let sendChain = Promise.resolve();
 
@@ -67,7 +248,7 @@ function showShops() {
 function appendBubble(role, text) {
   const div = document.createElement('div');
   div.className = 'bubble ' + role;
-  const who = role === 'seller' ? 'Shop' : 'You';
+  const who = role === 'seller' ? t('shop') : t('you');
   div.innerHTML = '<span class="who">' + who + '</span>' + escapeHtml(text);
   threadEl.appendChild(div);
   threadEl.scrollTop = threadEl.scrollHeight;
@@ -92,7 +273,7 @@ function hideTyping() {
 function renderThread(messages) {
   threadEl.innerHTML = (messages || [])
     .map((m) => {
-      const who = m.role === 'seller' ? 'Shop' : 'You';
+      const who = m.role === 'seller' ? t('shop') : t('you');
       return (
         '<div class="bubble ' + m.role + '"><span class="who">' + who + '</span>' +
         escapeHtml(m.text) + '</div>'
@@ -133,9 +314,9 @@ function renderPay(sess) {
   payLink.href = sess.pay_url;
   const status = (sess.invoice_status || '').toLowerCase();
   if (status === 'paid') {
-    payStatus.textContent = 'Payment received.';
+    payStatus.textContent = t('paid');
   } else if (status) {
-    payStatus.textContent = 'Waiting for payment.';
+    payStatus.textContent = t('waiting');
   } else {
     payStatus.textContent = '';
   }
@@ -176,12 +357,12 @@ async function startShop(shopId) {
     const res = await fetch('/api/chats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shop_id: shopId }),
+      body: JSON.stringify({ shop_id: shopId, language: currentLang() }),
     });
     const data = await res.json();
     hideTyping();
     if (!res.ok) {
-      dealStatus.textContent = 'Could not open that shop. Please try again.';
+      dealStatus.textContent = t('openError');
       showShops();
       return;
     }
@@ -189,7 +370,7 @@ async function startShop(shopId) {
     buyerInput.focus();
   } catch (err) {
     hideTyping();
-    dealStatus.textContent = 'Could not open that shop. Please try again.';
+    dealStatus.textContent = t('openError');
     showShops();
   }
 }
@@ -210,16 +391,16 @@ function sendBuyer(payload, displayText) {
       const data = await res.json();
       hideTyping();
       if (!res.ok) {
-        dealStatus.textContent = 'Your message could not be sent. Please try again.';
+        dealStatus.textContent = t('sendError');
         return;
       }
       renderSession(data.session);
       if (data.reason && !data.invoiced && !data.session.pay_url) {
-        dealStatus.textContent = 'We could not create the payment link. Please try again.';
+        dealStatus.textContent = t('invoiceError');
       }
     } catch (err) {
       hideTyping();
-      dealStatus.textContent = 'Your message could not be sent. Please try again.';
+      dealStatus.textContent = t('sendError');
     } finally {
       buyerInput.focus();
     }
@@ -255,7 +436,7 @@ refreshBtn.addEventListener('click', async () => {
     const res = await fetch('/api/invoices/' + session.invoice_pk + '/refresh', { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
-      payStatus.textContent = 'Could not refresh just now. Please try again.';
+      payStatus.textContent = t('refreshError');
       return;
     }
     session.invoice_status = data.status;
@@ -267,7 +448,7 @@ refreshBtn.addEventListener('click', async () => {
 
 proofBtn.addEventListener('click', async () => {
   if (!session || !session.invoice_pk) {
-    proofResult.innerHTML = '<p class="hint">The pay link appears after you say you want the item. Then you can send a receipt.</p>';
+    proofResult.innerHTML = '<p class="hint">' + escapeHtml(t('proofNeedDeal')) + '</p>';
     return;
   }
   proofBtn.disabled = true;
@@ -288,7 +469,7 @@ proofBtn.addEventListener('click', async () => {
     }
     const data = await res.json();
     if (!res.ok) {
-      proofResult.innerHTML = '<div class="verdict amount_or_reference_mismatch">' + escapeHtml(data.detail || 'We could not check that receipt.') + '</div>';
+      proofResult.innerHTML = '<div class="verdict amount_or_reference_mismatch">' + escapeHtml(data.detail || t('proofError')) + '</div>';
       return;
     }
     proofResult.innerHTML =
@@ -297,5 +478,32 @@ proofBtn.addEventListener('click', async () => {
     proofBtn.disabled = false;
   }
 });
+
+async function setBuyerLanguage(lang) {
+  const chosen = UI_TEXT[lang] ? lang : 'en';
+  sessionStorage.setItem('stallpay-lang', chosen);
+  applyUI();
+  if (!session) return;
+  try {
+    const res = await fetch('/api/chats/' + session.id + '/language', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: chosen }),
+    });
+    const data = await res.json();
+    if (res.ok) renderSession(data);
+  } catch (err) {
+    // The next message will still use the selected language once the shop is reopened.
+  }
+}
+
+if (langSelect) {
+  const stored = currentLang();
+  langSelect.value = stored;
+  applyUI();
+  langSelect.addEventListener('change', () => setBuyerLanguage(langSelect.value));
+} else {
+  applyUI();
+}
 
 prewarmShop();
