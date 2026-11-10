@@ -71,9 +71,11 @@ LLM_VISITOR_BURST_PER_MINUTE = _int_env("LLM_VISITOR_BURST_PER_MINUTE", 30)
 LLM_MAX_INPUT_CHARS = _int_env("LLM_MAX_INPUT_CHARS", 12000)
 LLM_MAX_TOKENS = _int_env("LLM_MAX_TOKENS", 1000)
 # Chat replies fall back to the scripted agent if the model is slower than this.
-LLM_CHAT_TIMEOUT = _float_env("LLM_CHAT_TIMEOUT", 4.5)
+# muse-spark-1.3 spends several hundred reasoning tokens before visible text,
+# so short budgets return empty content. Keep the on-page typing indicator up.
+LLM_CHAT_TIMEOUT = _float_env("LLM_CHAT_TIMEOUT", 20.0)
 # After a price is quoted, leftover free-text is classified as agree/decline/question/other.
-LLM_INTENT_TIMEOUT = _float_env("LLM_INTENT_TIMEOUT", 2.0)
+LLM_INTENT_TIMEOUT = _float_env("LLM_INTENT_TIMEOUT", 12.0)
 
 NGN_PER_USD = Decimal(env("NGN_PER_USD", "1480.00"))
 MXN_PER_USD = Decimal(env("MXN_PER_USD", "18.20"))

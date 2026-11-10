@@ -165,7 +165,7 @@ PUBLIC_BASE_URL=https://your-deployed-host.example
 
 Never commit `.env`, and never paste secrets into the repository, logs, or screenshots. `.env.example` lists the variable names with empty secret values.
 
-Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor. Optional cap variables, with the defaults above, are `LLM_VISITOR_DAILY_LIMIT`, `LLM_GLOBAL_DAILY_LIMIT`, `LLM_VISITOR_BURST_PER_MINUTE`, `LLM_MAX_INPUT_CHARS`, `LLM_MAX_TOKENS`, `LLM_CHAT_TIMEOUT` (default 4.5 seconds), and `LLM_INTENT_TIMEOUT` (default 2 seconds).
+Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor. Optional cap variables, with the defaults above, are `LLM_VISITOR_DAILY_LIMIT`, `LLM_GLOBAL_DAILY_LIMIT`, `LLM_VISITOR_BURST_PER_MINUTE`, `LLM_MAX_INPUT_CHARS`, `LLM_MAX_TOKENS`, `LLM_CHAT_TIMEOUT` (default 20 seconds), and `LLM_INTENT_TIMEOUT` (default 12 seconds).
 
 ## Hosting
 

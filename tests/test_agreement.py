@@ -44,9 +44,16 @@ NEGATIVE_PHRASES = [
     "yes but cheaper?",
 ]
 
-ODD_AGREE_PHRASES = [
+PAY_INTENT_PHRASES = [
     "send me the link",
     "I'll pay now",
+    "how do I pay",
+    "envíame el enlace",
+    "abeg send link",
+    "give me the link",
+]
+
+ODD_AGREE_PHRASES = [
     "wrap it up for me",
     "abeg make I pay",
 ]
@@ -80,6 +87,42 @@ def test_natural_affirmatives_after_a_quote_agree_to_the_quoted_price():
         # The quote should ask a natural question, not demand exact wording.
         quote = next(m.text for m in session.messages if m.role == "seller" and m is not session.messages[0])
         assert "Would you like to buy it?" in quote
+
+
+def test_pay_intent_phrases_agree_only_after_a_quote():
+    for phrase in PAY_INTENT_PHRASES:
+        reset_sessions()
+        session, expected = _quote()
+        result = handle_buyer_message(session, phrase, prefer_llm=False)
+        close = close_if_agreed(session)
+        assert close["ready"] is True, phrase
+        assert session.agreement_quote == phrase
+        assert session.quoted_price == expected, phrase
+        assert close["order"].stated_total_ngn == expected, phrase
+        assert result.get("invoice_ready") is True, phrase
+
+
+def test_pay_intent_does_not_invoice_without_a_pending_quote():
+    for phrase in PAY_INTENT_PHRASES:
+        reset_sessions()
+        session = start_session("mexico")
+        result = handle_buyer_message(session, phrase, prefer_llm=False)
+        assert close_if_agreed(session)["ready"] is False, phrase
+        assert not session.agreement_quote, phrase
+        assert not result.get("invoice_ready"), phrase
+
+
+def test_pay_intent_yes_does_not_call_the_model(monkeypatch):
+    import httpx
+
+    _enable_model(monkeypatch)
+    monkeypatch.setattr(httpx, "Client", _FakeClient)
+    session, expected = _quote()
+    _FakeClient.calls = []
+    handle_buyer_message(session, "send me the link", prefer_llm=True)
+    assert close_if_agreed(session)["ready"] is True
+    assert session.quoted_price == expected
+    assert _FakeClient.calls == []
 
 
 def test_quote_prompt_asks_if_they_would_like_to_buy_it():
@@ -139,7 +182,7 @@ def test_deterministic_yes_does_not_call_the_model(monkeypatch):
 
 
 def test_model_can_accept_odd_phrasing_and_still_locks_the_price(monkeypatch):
-    _enable_model(monkeypatch)
+    _enable_model(monkeypatch, max_tokens=1000)
     monkeypatch.setattr(httpx, "Client", _FakeClient)
     for phrase in ODD_AGREE_PHRASES:
         reset_sessions()
@@ -156,7 +199,7 @@ def test_model_can_accept_odd_phrasing_and_still_locks_the_price(monkeypatch):
         assert _FakeClient.calls, phrase
         # After a classified yes, the chat model is not also called.
         assert len(_FakeClient.calls) == 1, phrase
-        assert _FakeClient.calls[0]["max_tokens"] == 8
+        assert _FakeClient.calls[0]["max_tokens"] >= 512
 
 
 def test_model_question_or_other_does_not_invoice(monkeypatch):
@@ -194,12 +237,47 @@ def test_model_timeout_or_cap_falls_back_to_the_word_list(monkeypatch):
     _FakeClient.calls = []
     _FakeClient.content = "agree"
     session, expected = _quote()
-    handle_buyer_message(session, "send me the link", prefer_llm=True)
+    handle_buyer_message(session, "wrap it up for me", prefer_llm=True)
     assert close_if_agreed(session)["ready"] is False
     assert not session.agreement_quote
     assert session.quoted_price == expected
     assert _FakeClient.calls == []
-    # A listed yes still works when the model is capped.
-    handle_buyer_message(session, "yes", prefer_llm=True)
+    # A listed yes, including a pay-intent line, still works when the model is capped.
+    handle_buyer_message(session, "send me the link", prefer_llm=True)
     assert close_if_agreed(session)["ready"] is True
     assert session.quoted_price == expected
+
+def test_freetext_question_keeps_a_tailored_price_locked_reply(monkeypatch):
+    import httpx
+
+    _enable_model(monkeypatch)
+    monkeypatch.setattr(httpx, "Client", _FakeClient)
+    _FakeClient.calls = []
+    _FakeClient.content = "Of course, I'll gift-wrap them for your mum. The promo price is still MX$760.00."
+    session, expected = _quote()
+    result = handle_buyer_message(session, "Can you gift-wrap them? They're for my mum.", prefer_llm=True)
+    assert close_if_agreed(session)["ready"] is False
+    assert not session.agreement_quote
+    assert session.quoted_price == expected
+    assert "gift-wrap" in result["reply"]
+    assert "760" in result["reply"]
+    assert "Would you like to buy it?" not in result["reply"]
+    # A clear question should skip the classifier and make one chat call.
+    assert len(_FakeClient.calls) == 1
+    assert _FakeClient.calls[0]["max_tokens"] == 200 or _FakeClient.calls[0]["max_tokens"] >= 200
+
+
+def test_list_price_only_model_reply_is_kept_and_completed(monkeypatch):
+    import httpx
+
+    _enable_model(monkeypatch)
+    monkeypatch.setattr(httpx, "Client", _FakeClient)
+    _FakeClient.content = "Yes, I can gift-wrap them for your mum. They are normally MX$850.00."
+    session, expected = _quote()
+    result = handle_buyer_message(session, "Can you gift-wrap them? They're for my mum.", prefer_llm=True)
+    assert "gift-wrap" in result["reply"]
+    assert "850" in result["reply"]
+    assert "760" in result["reply"].replace(",", "")
+    assert close_if_agreed(session)["ready"] is False
+    assert session.quoted_price == expected
+

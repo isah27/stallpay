@@ -47,10 +47,15 @@ def _post_completion(body: dict[str, Any], timeout: float) -> str:
     except httpx.HTTPError as exc:
         raise LlmError("Model request failed.") from exc
     try:
-        content = data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        content = (choice.get("message") or {}).get("content")
+        finish = choice.get("finish_reason")
     except (KeyError, IndexError, TypeError) as exc:
         raise LlmError("Model response was unusable.") from exc
     if content is None or not str(content).strip():
+        # Reasoning models can spend the whole token budget before any visible text.
+        if finish == "length":
+            raise LlmError("Model response was empty after the token budget.")
         raise LlmError("Model response was unusable.")
     return str(content)
 
