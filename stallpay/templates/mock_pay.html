@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock PayPal pay link — StallPay</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="pay-body">
+  <main class="pay-card">
+    <p class="eyebrow">Mock PayPal checkout</p>
+    <h1>Pay invoice {{ invoice.invoice_id }}</h1>
+    <p>This page stands in for the PayPal sandbox payer view when StallPay is running in mock mode. No real money moves.</p>
+    <p>Status: <strong id="status">{{ invoice.status }}</strong></p>
+    {% if already_paid %}
+      <p class="check-ok">This invoice is already marked paid. Return to the StallPay board and refresh if needed.</p>
+    {% else %}
+      <button type="button" class="primary" id="pay-btn">Pay now (mock)</button>
+      <p class="hint" id="pay-msg"></p>
+    {% endif %}
+    <p><a href="/">Back to StallPay</a></p>
+  </main>
+  <script>
+    const btn = document.getElementById('pay-btn');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const res = await fetch(location.pathname, { method: 'POST' });
+        const data = await res.json();
+        const msg = document.getElementById('pay-msg');
+        if (data.ok) {
+          document.getElementById('status').textContent = 'PAID';
+          msg.textContent = 'Paid. Return to StallPay — the board should already show Paid, or click Refresh status.';
+        } else {
+          msg.textContent = 'Payment failed in mock mode.';
+          btn.disabled = false;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StallPay — WhatsApp order to PayPal invoice</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow">For Nigerian sellers on WhatsApp</p>
+      <h1>StallPay</h1>
+      <p class="tagline">Paste the order. We extract the lines, a checker signs off the totals, then PayPal issues the invoice.</p>
+    </div>
+    <div class="badges">
+      <span class="badge">Mode: {{ paypal_mode }}</span>
+      <span class="badge">1 USD = ₦{{ rate }} <small>({{ rate_as_of }})</small></span>
+      <span class="badge">{% if llm_configured %}Model extraction on, checker still decides{% else %}Built-in extractor (no model key needed){% endif %}</span>
+    </div>
+  </header>
+
+  <main class="board">
+    <section class="col" id="paste-col">
+      <h2>1. The WhatsApp chat</h2>
+      <p class="hint">Try a sample or paste your own. Use a sandbox or @example.com email, never a real customer.</p>
+      <div class="samples" id="samples">
+        {% for sample in samples %}
+        <button type="button" class="sample" data-id="{{ sample.id }}" data-text="{{ sample.text | e }}">{{ sample.label }}</button>
+        {% endfor %}
+      </div>
+      <label for="chat">Order text</label>
+      <textarea id="chat" rows="10" placeholder="Paste the WhatsApp order here…"></textarea>
+      <div class="actions">
+        <button type="button" class="primary" id="preview-btn">Extract and check</button>
+      </div>
+    </section>
+
+    <section class="col" id="draft-col">
+      <h2>2. Draft and checker</h2>
+      <div id="draft-empty" class="empty">The extracted draft will appear here. If the checker fails, PayPal is not called.</div>
+      <div id="draft-panel" class="hidden">
+        <div id="check-box" class="check-box"></div>
+        <div class="field">
+          <label for="buyer-name">Buyer name</label>
+          <input id="buyer-name" type="text">
+        </div>
+        <div class="field">
+          <label for="buyer-email">Buyer email</label>
+          <input id="buyer-email" type="email">
+        </div>
+        <table class="lines" id="lines">
+          <thead>
+            <tr><th>Item</th><th>Qty</th><th>Unit (₦)</th><th>Line</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="field">
+          <label for="stated-total">Stated total (₦)</label>
+          <input id="stated-total" type="text">
+        </div>
+        <p class="conversion" id="conversion"></p>
+        <div class="actions">
+          <button type="button" id="recheck-btn">Re-check edits</button>
+          <button type="button" class="primary" id="send-btn">Create PayPal invoice</button>
+        </div>
+        <p class="hint" id="send-status"></p>
+      </div>
+    </section>
+
+    <section class="col" id="board-col">
+      <h2>3. Invoice board</h2>
+      <p class="hint">Statuses: draft, sent, paid, reminder sent, cancelled. Use Refresh if a webhook is delayed.</p>
+      <div id="invoices">
+        {% if invoices %}
+          {% for inv in invoices %}
+          <article class="invoice" data-id="{{ inv.id }}">
+            <header>
+              <strong>{{ inv.buyer_name }}</strong>
+              <span class="status status-{{ inv.status }}">{{ inv.status }}</span>
+            </header>
+            <p>{{ inv.buyer_email }}</p>
+            <p class="mono">{{ inv.paypal_invoice_id }}</p>
+            {% if inv.pay_url %}<p><a href="{{ inv.pay_url }}" target="_blank" rel="noopener">Open pay link</a></p>{% endif %}
+            {% if inv.reminder_sent %}<p class="hint">Reminder sent</p>{% endif %}
+            <div class="actions">
+              <button type="button" class="refresh" data-id="{{ inv.id }}">Refresh status</button>
+              {% if inv.status not in ['paid', 'cancelled', 'refunded'] %}
+              <button type="button" class="remind" data-id="{{ inv.id }}">Send reminder</button>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        {% else %}
+          <div class="empty">No invoices yet.</div>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+
+  <section class="metrics-strip">
+    <h2>Published numbers</h2>
+    <p>
+      Built-in extractor + checker on the committed sample set:
+      {{ metrics.success_extracted_and_checked }} / {{ metrics.success_samples }} demo chats extract correctly and pass the checker.
+      {{ metrics.failure_blocked_by_checker }} / {{ metrics.failure_samples }} documented failure cases are blocked before any PayPal call.
+      <a href="/metrics">Full table</a>
+    </p>
+  </section>
+
+  <footer>
+    <p>Sandbox only. No real money, no WhatsApp Business API, no messages to real customers. MIT licensed.</p>
+  </footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

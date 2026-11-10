@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StallPay metrics</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow"><a href="/">← Back to StallPay</a></p>
+      <h1>Sample results</h1>
+      <p class="tagline">These numbers come from the built-in extractor and the deterministic checker, so they can be reproduced without a model key.</p>
+    </div>
+  </header>
+  <main class="metrics-page">
+    <p>
+      Demo chats that extract and pass: <strong>{{ metrics.success_extracted_and_checked }} / {{ metrics.success_samples }}</strong>.
+      Failure cases blocked: <strong>{{ metrics.failure_blocked_by_checker }} / {{ metrics.failure_samples }}</strong>.
+      PayPal mode: {{ metrics.paypal_mode }}. Conversion: 1 USD = ₦{{ metrics.conversion.ngn_per_usd }} as of {{ metrics.conversion.rate_as_of }}.
+    </p>
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>Sample</th>
+          <th>Category</th>
+          <th>Extraction</th>
+          <th>Checker</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in metrics.rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ row.category }}</td>
+          <td>{% if row.category == 'success' %}{{ 'pass' if row.extraction_ok else 'fail' }}{% else %}—{% endif %}</td>
+          <td>{{ 'pass' if row.checker_ok else 'blocked' }}</td>
+          <td>
+            {% if row.failure_reason %}{{ row.failure_reason }}{% endif %}
+            {% if row.checker_errors %}
+              <ul>{% for err in row.checker_errors %}<li>{{ err }}</li>{% endfor %}</ul>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
