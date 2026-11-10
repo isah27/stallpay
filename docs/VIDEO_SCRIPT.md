@@ -10,13 +10,13 @@ Say: “Small sellers close deals in Instagram, WhatsApp, and Telegram in every 
 
 ## 0:20–1:20 — Pick a shop, hear the promo, say yes, paid
 
-On screen: the step-by-step buyer flow at the live URL. Pick Joyería Sofía. The agent greets and lists the items, with no pay link yet. Choose the silver hoop earrings. The agent states the list price and the configured promo, including the real end time. The buyer tries to bargain it down; the agent holds the promo price as the best price. The buyer says clearly, in Spanish, that they want it. Only then does the PayPal sandbox invoice and pay link appear. The Personal sandbox buyer pays. Refresh shows Paid.
+On screen: the live buyer chat. The first line is “Select the shop you want to buy from.” Pick Joyería Sofía. The agent greets and lists the items, with no pay link yet. Tap the silver hoop earrings — the buyer’s choice appears in the chat immediately, then the price and promo, including the real end time. The buyer tries a lower offer; the agent holds the promo price as the best price. The buyer says clearly, in Spanish, that they want it. Only then does the PayPal sandbox invoice and pay link appear. The Personal sandbox buyer pays. Refresh shows Paid.
 
-Say: “Watch it walk one step at a time. The price is the seller’s real promo, not a made-up bargain. A PayPal invoice appears only after a clear yes. When the buyer actually pays, the status flips to Paid.”
+Say: “Pick a shop, choose an item, and hear the real promo. Your messages show up straight away. A PayPal invoice appears only after a clear yes. When the buyer actually pays, the status flips to Paid.”
 
 ## 1:20–2:10 — Fake receipt refused
 
-On screen: Amaka’s Lagos stall or Priya’s Jaipur stall, after a pay link exists. The buyer pastes or uploads a fake receipt under “Already paid? Upload proof.” The panel shows PayPal status and the mismatch. Refresh still does not show Paid.
+On screen: Amaka’s Lagos stall or Priya’s Jaipur stall, after a pay link exists. The buyer pastes or uploads a fake receipt under “Already paid?” The panel refuses it. Refresh still does not show Paid.
 
 Say: “This looks like a payment alert, but PayPal says the invoice is not paid, so the agent refuses it.”
 

@@ -20,7 +20,7 @@ Seller tools, including the original Lagos sample orders, live on a separate `/s
 
 ## What it does
 
-1. Open the site with no login and pick a shop. The buyer then stays on one screen at a time: items, price, then pay.
+1. Open the site with no login and pick a shop. The buyer page is a clean shop chat: no step labels, no conversion rates, and no developer notes. Prices are shown in the shop’s own currency.
 2. The agent greets the buyer and lists the items it has. The buyer selects an item by tapping it or by typing in any language.
 3. The agent states the price. If a promo is configured and still running, it quotes the list price and the promo price, and it names the real expiry. If no promo is configured, or the promo has ended, it just states the list price. Bargaining does not change the price; the agent says the promo price (or the list price) is already the best it can do.
 4. A PayPal invoice and pay link appear only when a buyer utterance clearly says yes to that item and price, for example “Okay I want it,” in any language. A bare “ok” is not enough. Nothing about invoices or pay links is shown before that yes.
@@ -41,7 +41,7 @@ cp .env.example .env        # leave PAYPAL_MODE=mock
 uvicorn stallpay.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “De acuerdo, lo tomo” or “Okay I want it.” The PayPal pay link should appear only after that yes. Optionally paste a fake receipt under “Already paid? Upload proof” — the check should refuse it because PayPal does not confirm payment. Open the pay link and click **Pay now (mock)**, then **Refresh status**. The status should flip to **paid**.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first line is “Select the shop you want to buy from.” Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “De acuerdo, lo tomo” or “Okay I want it.” Your messages appear in the chat immediately. The PayPal pay link should appear only after that yes. Optionally paste a fake receipt under “Already paid?” — the check should refuse it because PayPal does not confirm payment. Open the pay link and click **Pay now (mock)**, then **Refresh payment status**. The status should flip to paid.
 
 Seller tools are at [http://127.0.0.1:8000/seller](http://127.0.0.1:8000/seller). Click **Tailor in Surulere — 2 native shirts**, then **Extract and check**, then **Create PayPal invoice**. **Write briefing** and **Play** read the morning summary.
 
@@ -49,7 +49,7 @@ A public no-login demo is at [https://stallpay.onrender.com/](https://stallpay.o
 
 Useful paths:
 
-- `/` — no-login buyer demo
+- `/` — no-login buyer shop chat
 - `/seller` — invoice board, briefing, reminders, paste-a-chat
 - `/health` — liveness
 - `/metrics` — published accuracy tables
@@ -88,14 +88,14 @@ Recipient emails are not sent automatically when an invoice is created, so a pas
 
 When a model key is configured (`LLM_API_KEY`, `BASETEN_API_KEY`, or `MODEL_API_KEY`), the model may:
 
-- draft the next seller-side reply in the buyer’s language
+- draft a reply to a free-text buyer message (item picks and price quotes are scripted and return immediately)
 - propose structured fields from a pasted or finished chat
 - propose amount, currency, and reference from a receipt
 - draft reminder copy and the morning briefing
 
 It does not talk to PayPal, cannot mark an invoice paid, and cannot invent or accept a price other than the list price or an active configured promo. Ordinary code locks the price, the agreement gate, the totals, and the PayPal cross-check.
 
-If no model key is set, or the model is slow or unusable, scripted replies and a built-in extractor still quote only catalog prices, refuse a missing yes, run the sample chats, and check proof text against PayPal. A judge is never blocked on an API key.
+If no model key is set, or the model is slow or unusable, scripted replies and a built-in extractor still quote only catalog prices, refuse a missing yes, run the sample chats, and check proof text against PayPal. Item selection and price quotes never wait on the model. Free-text turns wait a few seconds for a model reply, then fall back to the scripted agent. A judge is never blocked on an API key.
 
 On a public host, model calls are capped per visitor and per day. The defaults are 200 calls per visitor per day, 30 per visitor per minute, and 3,000 across all visitors per day, plus a maximum prompt length and reply size. When a cap is reached, the scripted path and built-in parser are used instead, and the page shows a short note. The price and agreement checks still apply.
 
@@ -172,7 +172,7 @@ PUBLIC_BASE_URL=https://your-deployed-host.example
 
 Never commit `.env`, and never paste secrets into the repository, logs, or screenshots. `.env.example` lists the variable names with empty secret values.
 
-Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor. Optional cap variables, with the defaults above, are `LLM_VISITOR_DAILY_LIMIT`, `LLM_GLOBAL_DAILY_LIMIT`, `LLM_VISITOR_BURST_PER_MINUTE`, `LLM_MAX_INPUT_CHARS`, and `LLM_MAX_TOKENS`.
+Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor. Optional cap variables, with the defaults above, are `LLM_VISITOR_DAILY_LIMIT`, `LLM_GLOBAL_DAILY_LIMIT`, `LLM_VISITOR_BURST_PER_MINUTE`, `LLM_MAX_INPUT_CHARS`, `LLM_MAX_TOKENS`, and `LLM_CHAT_TIMEOUT` (default 4.5 seconds).
 
 ## Hosting
 
@@ -195,7 +195,7 @@ Hosting on Render also keeps the project eligible for the hackathon’s Render s
 - No login or multi-seller accounts. Promo prices and expiry dates are configured in the shop catalog, not in a seller admin UI.
 - Conversion rates are labelled demo rates, not a live FX feed. Invoices are in USD.
 - The receipt check is grounded in PayPal. It is not a guarantee of spotting every edited pixel.
-- Model replies can be weak or slow; the scripted path and the checker still have the last word, and the canned demos work without a model.
+- Model replies can be weak or slow; item picks and quotes skip the model, free-text turns time out after a few seconds, and the scripted path and the checker still have the last word.
 - Public model use is capped per visitor and per day so a busy demo cannot run unbounded. Past a cap, replies fall back to the scripted path.
 - Webhook signature verification runs when `PAYPAL_WEBHOOK_ID` is set. Otherwise, treat webhook events as hints and confirm with Refresh status.
 - Free-tier hosts may sleep and may lose the SQLite board after a restart.

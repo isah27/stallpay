@@ -242,7 +242,7 @@ def handle_buyer_message(
 
     session.messages.append(ChatTurn("buyer", text))
     session.language = detect_language(text, session.language, session.shop.language)
-    _update_selection(session, text, item_id=item_id)
+    selected = _update_selection(session, text, item_id=item_id)
     selling = session.selling_total()
     if selling is not None:
         session.quoted_price = selling
@@ -253,8 +253,12 @@ def handle_buyer_message(
     if agreement and session.quoted_price is not None:
         session.agreement_quote = agreement
 
+    # Item picks and first price quotes are deterministic. Skip the model so
+    # the reply can return immediately. Free-text turns may use the model
+    # with a short timeout and a scripted fallback.
+    quote_or_select = bool(item_id or selected) and not bargaining and not agreement
     reply = None
-    if prefer_llm and config.LLM_AVAILABLE:
+    if prefer_llm and config.LLM_AVAILABLE and not quote_or_select:
         reply = _llm_reply(session)
         reply = _scrub_reply_prices(session, reply)
     if not reply:
@@ -325,7 +329,7 @@ def detect_language(text: str, current: str, shop_language: str) -> str:
     return current or shop_language or "en"
 
 
-def _update_selection(session: ChatSession, text: str, item_id: str | None = None) -> None:
+def _update_selection(session: ChatSession, text: str, item_id: str | None = None) -> bool:
     found: list[CatalogItem] = []
     if item_id:
         tapped = session.shop.item(item_id)
@@ -347,6 +351,8 @@ def _update_selection(session: ChatSession, text: str, item_id: str | None = Non
                 session.quantities[item.id] = qty or session.quantities.get(item.id) or Decimal("1")
         session.quoted_price = session.selling_total()
         session.agreement_quote = ""
+        return True
+    return False
 
 
 def _mentions_multiple(found: list[CatalogItem], text: str) -> bool:
@@ -579,7 +585,8 @@ def _llm_reply(session: ChatSession) -> str | None:
     )
     history = session.transcript()
     try:
-        text = complete(system, history, max_tokens=1000, temperature=0.4, timeout=40.0)
+        timeout = float(getattr(config, "LLM_CHAT_TIMEOUT", 4.5) or 4.5)
+        text = complete(system, history, max_tokens=1000, temperature=0.4, timeout=timeout)
     except (LlmError, Exception):
         return None
     cleaned = (text or "").strip().strip('"')

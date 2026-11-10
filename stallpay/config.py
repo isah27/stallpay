@@ -28,6 +28,14 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+def _float_env(name: str, default: float) -> float:
+    raw = env(name, str(default)).strip()
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 ROOT.mkdir(parents=True, exist_ok=True)
 
 PAYPAL_MODE = env("PAYPAL_MODE", "mock").strip().lower() or "mock"
@@ -59,6 +67,8 @@ LLM_GLOBAL_DAILY_LIMIT = _int_env("LLM_GLOBAL_DAILY_LIMIT", 3000)
 LLM_VISITOR_BURST_PER_MINUTE = _int_env("LLM_VISITOR_BURST_PER_MINUTE", 30)
 LLM_MAX_INPUT_CHARS = _int_env("LLM_MAX_INPUT_CHARS", 12000)
 LLM_MAX_TOKENS = _int_env("LLM_MAX_TOKENS", 1000)
+# Chat replies fall back to the scripted agent if the model is slower than this.
+LLM_CHAT_TIMEOUT = _float_env("LLM_CHAT_TIMEOUT", 4.5)
 
 NGN_PER_USD = Decimal(env("NGN_PER_USD", "1480.00"))
 MXN_PER_USD = Decimal(env("MXN_PER_USD", "18.20"))

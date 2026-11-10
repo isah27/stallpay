@@ -65,6 +65,7 @@ def setup_function():
     limits.reset()
     limits.clear_notice()
     _FakeClient.calls = []
+    _FakeClient.content = "Normalmente son MX$850, pero con la promo quedan en MX$760. La promo termina el jueves."
 
 
 def test_consume_enforces_visitor_daily_and_ip_and_global(monkeypatch):
@@ -134,11 +135,13 @@ def test_chat_falls_back_to_scripted_reply_when_capped_and_holds_price(monkeypat
     monkeypatch.setattr(httpx, "Client", _FakeClient)
     session = start_session("mexico")
     result = handle_buyer_message(session, "Quiero los aretes de aro de plata.", prefer_llm=True)
-    assert result["usage_note"] == USAGE_NOTE
+    # Selection and quote skip the model, so a cap is not touched on this turn.
+    assert "usage_note" not in result
     assert _FakeClient.calls == []
     assert session.quoted_price == session.selling_total()
     low = handle_buyer_message(session, "Te doy 300 pesos.", prefer_llm=True)
     assert low["usage_note"] == USAGE_NOTE
+    assert _FakeClient.calls == []
     assert session.quoted_price == session.selling_total()
     assert "760" in low["reply"] or "promo" in low["reply"].lower() or "mejor" in low["reply"].lower()
 
@@ -148,7 +151,10 @@ def test_chat_uses_model_reply_when_under_cap(monkeypatch):
     limits.set_visitor("visitor-jjjjjjjjjjjj", "9.9.9.9")
     monkeypatch.setattr(httpx, "Client", _FakeClient)
     session = start_session("mexico")
-    result = handle_buyer_message(session, "Quiero los aretes de aro de plata.", prefer_llm=True)
+    quoted = handle_buyer_message(session, "Quiero los aretes de aro de plata.", prefer_llm=True)
+    assert "usage_note" not in quoted
+    assert _FakeClient.calls == []
+    result = handle_buyer_message(session, "Te doy 300 pesos.", prefer_llm=True)
     assert "usage_note" not in result
     assert result["reply"] == _FakeClient.content
     assert len(_FakeClient.calls) == 1
@@ -177,22 +183,34 @@ def test_api_sets_visitor_cookie_and_returns_usage_note(client, monkeypatch):
     )
     assert first.status_code == 200
     assert "usage_note" not in first.json()
-    assert first.json()["reply"] == _FakeClient.content
+    # Item selection and the price quote are scripted and must not call the model.
+    assert first.json()["reply"] != _FakeClient.content
+    assert "760" in first.json()["reply"]
+    assert _FakeClient.calls == []
     second = client.post(
         f"/api/chats/{session_id}/messages",
         json={"text": "Te doy 300 pesos."},
     )
     assert second.status_code == 200
     body = second.json()
-    assert body["usage_note"] == USAGE_NOTE
-    assert body["reply"] != _FakeClient.content
-    assert second.json()["session"]["quoted_price"] == "760.00"
+    assert "usage_note" not in body
+    assert body["reply"] == _FakeClient.content
+    assert body["session"]["quoted_price"] == "760.00"
+    assert len(_FakeClient.calls) == 1
+    third = client.post(
+        f"/api/chats/{session_id}/messages",
+        json={"text": "Entonces te doy 500."},
+    )
+    assert third.status_code == 200
+    assert third.json()["usage_note"] == USAGE_NOTE
+    assert third.json()["reply"] != _FakeClient.content
     assert len(_FakeClient.calls) == 1
 
 
 def test_home_includes_usage_note_placeholder(client):
-    html = client.get("/").text
-    assert 'id="usage-note"' in html
+    # Usage notes are seller-facing only; the buyer page stays customer-facing.
+    assert 'id="usage-note"' not in client.get("/").text
+    assert 'id="usage-note"' in client.get("/seller").text
 
 
 def test_complete_rejects_empty_content(monkeypatch):

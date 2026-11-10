@@ -27,6 +27,34 @@ def _reserve(input_chars: int) -> None:
         raise LlmCapped("Model usage cap reached.")
 
 
+def _auth_headers() -> dict[str, str]:
+    scheme = (config.LLM_AUTH_SCHEME or "Api-Key").strip()
+    return {
+        "Authorization": f"{scheme} {config.LLM_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+def _post_completion(body: dict[str, Any], timeout: float) -> str:
+    url = f"{config.LLM_BASE_URL}/chat/completions"
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post(url, headers=_auth_headers(), json=body)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.TimeoutException as exc:
+        raise LlmError("Model timed out.") from exc
+    except httpx.HTTPError as exc:
+        raise LlmError("Model request failed.") from exc
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise LlmError("Model response was unusable.") from exc
+    if content is None or not str(content).strip():
+        raise LlmError("Model response was unusable.")
+    return str(content)
+
+
 def complete(
     system: str,
     user: str,
@@ -39,11 +67,6 @@ def complete(
         raise LlmError("No model is configured.")
     _reserve(_input_chars(system, user))
     max_tokens = _clamped_max_tokens(max_tokens)
-    scheme = (config.LLM_AUTH_SCHEME or "Api-Key").strip()
-    headers = {
-        "Authorization": f"{scheme} {config.LLM_API_KEY}",
-        "Content-Type": "application/json",
-    }
     body = {
         "model": config.LLM_MODEL,
         "messages": [
@@ -53,18 +76,7 @@ def complete(
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    url = f"{config.LLM_BASE_URL}/chat/completions"
-    with httpx.Client(timeout=timeout) as client:
-        response = client.post(url, headers=headers, json=body)
-        response.raise_for_status()
-        data = response.json()
-    try:
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise LlmError("Model response was unusable.") from exc
-    if content is None or not str(content).strip():
-        raise LlmError("Model response was unusable.")
-    return str(content)
+    return _post_completion(body, timeout)
 
 
 def complete_vision(
@@ -82,11 +94,6 @@ def complete_vision(
     _reserve(_input_chars(system, user))
     max_tokens = _clamped_max_tokens(max_tokens)
     model = config.VISION_MODEL or config.LLM_MODEL
-    scheme = (config.LLM_AUTH_SCHEME or "Api-Key").strip()
-    headers = {
-        "Authorization": f"{scheme} {config.LLM_API_KEY}",
-        "Content-Type": "application/json",
-    }
     body = {
         "model": model,
         "messages": [
@@ -105,15 +112,4 @@ def complete_vision(
         "temperature": 0,
         "max_tokens": max_tokens,
     }
-    url = f"{config.LLM_BASE_URL}/chat/completions"
-    with httpx.Client(timeout=timeout) as client:
-        response = client.post(url, headers=headers, json=body)
-        response.raise_for_status()
-        data = response.json()
-    try:
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise LlmError("Vision model response was unusable.") from exc
-    if content is None or not str(content).strip():
-        raise LlmError("Vision model response was unusable.")
-    return str(content)
+    return _post_completion(body, timeout)

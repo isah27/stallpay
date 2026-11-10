@@ -3,39 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>StallPay — a shop agent for chat sellers anywhere</title>
+  <title>StallPay</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="buyer-page">
-  <header class="top">
-    <div>
-      <p class="eyebrow">For small sellers who close deals in Instagram, WhatsApp, or Telegram</p>
-      <h1>StallPay</h1>
-      <p class="tagline">Pick a shop, choose an item, and hear the real price — including any promo the seller has actually configured. A PayPal invoice appears only after you clearly say yes.</p>
-    </div>
-    <div class="badges">
-      <span class="badge">Mode: {{ paypal_mode }}</span>
-      <span class="badge">1 USD = ₦{{ rate }} · MX${{ mxn_rate }} · ₹{{ inr_rate }} <small>({{ rate_as_of }})</small></span>
-      <span class="badge">{% if llm_configured %}Model drafts replies, the checker still decides{% else %}Scripted agent (no model key needed){% endif %}</span>
-    </div>
+  <div id="open-loader" class="open-loader hidden" role="status" aria-live="polite">
+    <p>Opening the shop…</p>
+  </div>
+
+  <header class="top buyer-top">
+    <h1>StallPay</h1>
   </header>
 
-  <ol class="steps" id="steps" aria-label="Purchase steps">
-    <li class="step current" data-step="shop">1. Shop</li>
-    <li class="step" data-step="item">2. Item</li>
-    <li class="step" data-step="price">3. Price</li>
-    <li class="step" data-step="pay">4. Pay</li>
-  </ol>
-
   <section class="shops view" id="view-shops">
-    <h2>Choose a business</h2>
-    <p class="hint">No login. The Nigeria, Mexico, and India shops are equal demos, not a single-country product. After you pick a shop, you will only see that shop’s items and chat.</p>
+    <h2>Select the shop you want to buy from.</h2>
     <div class="shop-grid">
       {% for shop in shops %}
       <button type="button" class="shop-card" data-shop="{{ shop.id }}" id="shop-{{ shop.id }}">
         <strong>{{ shop.name }}</strong>
-        <span>{{ shop.city }}, {{ shop.country }} · {{ shop.currency }}</span>
-        <em>{{ shop.seller_name }}, {{ shop.seller_title }}</em>
+        <span>{{ shop.city }}, {{ shop.country }}</span>
+        <em>{{ shop.seller_name }}</em>
       </button>
       {% endfor %}
     </div>
@@ -51,50 +38,35 @@
         <button type="button" class="text-btn" id="change-shop-btn">Change shop</button>
       </div>
       <div id="item-chips" class="item-chips" hidden></div>
-      <div id="thread" class="thread"></div>
+      <div id="thread" class="thread" role="log" aria-live="polite"></div>
       <form id="chat-form" class="chat-form">
         <label class="sr-only" for="buyer-input">Your message</label>
-        <input id="buyer-input" type="text" placeholder="Type as the buyer, in any language…" autocomplete="off">
+        <input id="buyer-input" type="text" placeholder="Write a message…" autocomplete="off" enterkeyhint="send">
         <button type="submit" class="primary" id="send-chat-btn">Send</button>
       </form>
-      <p class="hint usage-note hidden" id="usage-note"></p>
       <p class="deal-status" id="deal-status"></p>
 
       <div id="pay-card" class="pay-card hidden">
         <h3>Pay for this order</h3>
         <p id="pay-summary"></p>
-        <p><a id="pay-link" href="#" target="_blank" rel="noopener">Open the PayPal pay link</a></p>
+        <p><a id="pay-link" href="#" target="_blank" rel="noopener">Pay with PayPal</a></p>
         <div class="actions">
-          <button type="button" id="refresh-btn">Refresh status</button>
+          <button type="button" id="refresh-btn">Refresh payment status</button>
         </div>
         <p class="hint" id="pay-status"></p>
         <div id="proof-panel" class="proof-panel">
-          <h3>Already paid? Upload proof</h3>
-          <p class="hint">Paste receipt text or upload an image. StallPay may read the fields, but only a PayPal GET can confirm payment. The image never marks the order paid.</p>
-          <textarea id="proof-text" rows="4" placeholder="Paste a receipt, bank alert, or PayPal confirmation…"></textarea>
+          <h3>Already paid?</h3>
+          <p class="hint">Send a photo or the text of your receipt and we’ll check it.</p>
+          <textarea id="proof-text" rows="4" placeholder="Paste your receipt here…"></textarea>
           <input id="proof-file" type="file" accept="image/*">
-          <button type="button" id="proof-btn">Check against PayPal</button>
+          <button type="button" id="proof-btn">Check my payment</button>
           <div id="proof-result"></div>
         </div>
       </div>
     </section>
   </main>
 
-  <section class="metrics-strip">
-    <h2>Published numbers</h2>
-    <p>
-      Price integrity: {{ full_metrics.price_integrity.held }} / {{ full_metrics.price_integrity.total }} adversarial scripts never quote a price other than the list or active promo price.
-      Promo expiry: {{ full_metrics.promo_expiry.held }} / {{ full_metrics.promo_expiry.total }} expired promos are never offered.
-      Agreement gate false invoices: {{ full_metrics.agreement_gate.false_invoice_count }}.
-      Payment-proof fakes caught: {{ full_metrics.payment_proof.fake_caught }} / {{ full_metrics.payment_proof.fake_total }}.
-      v1 regression: {{ metrics.success_extracted_and_checked }} / {{ metrics.success_samples }} Lagos demo chats extract and pass;
-      {{ metrics.failure_blocked_by_checker }} / {{ metrics.failure_samples }} failure cases are blocked before PayPal.
-      <a href="/metrics">Full tables</a>
-    </p>
-  </section>
-
   <footer>
-    <p>Sandbox only. Invoices are in USD with a labelled conversion from the seller’s currency. Chat runs in this app, not on the official WhatsApp, Instagram, or Telegram APIs. The receipt check is grounded in PayPal, not a claim that every edited pixel can be spotted. No messages are sent to real customers. MIT licensed.</p>
     <p class="seller-link"><a href="/seller">Seller tools</a></p>
   </footer>
   <script src="/static/app.js"></script>

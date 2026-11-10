@@ -100,3 +100,32 @@ def test_edit_before_send_recheck(client):
     order["stated_total_ngn"] = original_total
     ok = client.post("/api/preview", json={"order": order})
     assert ok.json()["blocked"] is False
+
+
+def test_buyer_page_is_customer_facing(client):
+    home = client.get("/").text
+    assert "Select the shop you want to buy from." in home
+    assert "StallPay" in home
+    assert "Seller tools" in home
+    for forbidden in (
+        "Step 1",
+        "Step 2",
+        "1. Shop",
+        "2. Item",
+        "Mode:",
+        "1 USD",
+        "Published numbers",
+        "Model drafts",
+        "Scripted agent",
+        "class=\"steps\"",
+        "metrics-strip",
+        "invoice board",
+        "usage-note",
+        "PayPal sandbox",
+        "price conversion",
+    ):
+        assert forbidden not in home
+    # Conversion rates and mode stay on seller tools, not the buyer page.
+    seller = client.get("/seller").text
+    assert "Mode:" in seller
+    assert "Invoice board" in seller

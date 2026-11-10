@@ -1,6 +1,7 @@
 """StallPay web app: a global chat sales agent with a checked PayPal invoice."""
 from __future__ import annotations
 
+import asyncio
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -115,7 +116,12 @@ def metrics(request: Request, format: str | None = None):
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse(request, "index.html", _page_context(request))
+    # Buyer page only needs the shop list. Metrics and mode badges stay on /seller.
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {"request": request, "shops": [shop.to_public() for shop in list_shops()]},
+    )
 
 
 @app.get("/seller", response_class=HTMLResponse)
@@ -173,7 +179,8 @@ async def api_chat_message(session_id: str, request: Request):
     if body.get("buyer_email"):
         session.buyer_email = str(body["buyer_email"]).strip()
     try:
-        result = handle_buyer_message(
+        result = await asyncio.to_thread(
+            handle_buyer_message,
             session,
             text,
             prefer_llm=bool(body.get("prefer_llm", True)),
@@ -182,7 +189,7 @@ async def api_chat_message(session_id: str, request: Request):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if result.get("invoice_ready"):
-        created = create_from_session(session, _client())
+        created = await asyncio.to_thread(create_from_session, session, _client())
         result["invoice"] = created.get("invoice")
         result["session"] = created.get("session") or session.to_public()
         result["blocked"] = created.get("blocked")
