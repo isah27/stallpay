@@ -10,15 +10,17 @@
   <header class="top">
     <div>
       <p class="eyebrow"><a href="/">← Back to StallPay</a></p>
-      <h1>Sample results</h1>
-      <p class="tagline">These numbers come from the built-in extractor and the deterministic checker, so they can be reproduced without a model key.</p>
+      <h1>Published results</h1>
+      <p class="tagline">These numbers come from deterministic checks and committed fixtures, and can be reproduced with pytest without a model key. Misses are published, not rounded away.</p>
     </div>
   </header>
   <main class="metrics-page">
+    <h2>v1 regression</h2>
     <p>
       Demo chats that extract and pass: <strong>{{ metrics.success_extracted_and_checked }} / {{ metrics.success_samples }}</strong>.
       Failure cases blocked: <strong>{{ metrics.failure_blocked_by_checker }} / {{ metrics.failure_samples }}</strong>.
-      PayPal mode: {{ metrics.paypal_mode }}. Conversion: 1 USD = ₦{{ metrics.conversion.ngn_per_usd }} as of {{ metrics.conversion.rate_as_of }}.
+      PayPal mode: {{ metrics.paypal_mode }}.
+      Conversion dated {{ metrics.conversion.rate_as_of }}: 1 USD = ₦{{ metrics.conversion.ngn_per_usd }} = MX${{ metrics.conversion.mxn_per_usd }} = ₹{{ metrics.conversion.inr_per_usd }}.
     </p>
     <table class="lines">
       <thead>
@@ -31,7 +33,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for row in metrics.rows %}
+        {% for row in metrics.v1_regression.rows %}
         <tr>
           <td>{{ row.label }}</td>
           <td>{{ row.category }}</td>
@@ -43,6 +45,74 @@
               <ul>{% for err in row.checker_errors %}<li>{{ err }}</li>{% endfor %}</ul>
             {% endif %}
           </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>Floor integrity</h2>
+    <p>
+      Adversarial buyer scripts that held the floor with no below-floor committed offer and no invoice:
+      <strong>{{ metrics.floor_integrity.held }} / {{ metrics.floor_integrity.total }}</strong>.
+    </p>
+    <table class="lines">
+      <thead>
+        <tr><th>Script</th><th>Language / shop</th><th>Floor held</th><th>Invoice blocked</th><th>Result</th></tr>
+      </thead>
+      <tbody>
+        {% for row in metrics.floor_integrity.rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ row.language }} / {{ row.shop_id }}</td>
+          <td>{{ 'yes' if row.floor_held else 'NO' }}</td>
+          <td>{{ 'yes' if row.invoice_blocked else 'NO' }}</td>
+          <td>{{ 'pass' if row.pass else 'miss' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>Agreement gate</h2>
+    <p>
+      False invoice rate: <strong>{{ metrics.agreement_gate.false_invoice_count }}</strong>
+      (no PayPal create unless a buyer utterance is quoted that agrees the exact items and exact total, at or above the floor).
+      Cases passed: {{ metrics.agreement_gate.pass_count }} / {{ metrics.agreement_gate.total }}.
+    </p>
+    <table class="lines">
+      <thead>
+        <tr><th>Case</th><th>Should invoice</th><th>Would invoice</th><th>Result</th></tr>
+      </thead>
+      <tbody>
+        {% for row in metrics.agreement_gate.rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ row.should_invoice }}</td>
+          <td>{{ row.would_invoice }}</td>
+          <td>{{ 'pass' if row.pass else 'miss' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>Payment-proof check</h2>
+    <p>
+      Fakes caught (not confirmed by PayPal): <strong>{{ metrics.payment_proof.fake_caught }} / {{ metrics.payment_proof.fake_total }}</strong>.
+      Genuine PayPal-paid proofs confirmed: {{ metrics.payment_proof.genuine_confirmed }} / {{ metrics.payment_proof.genuine_total }}.
+      False alarms on genuine proofs: {{ metrics.payment_proof.genuine_false_alarms }}.
+      An unverified result is a refuse-to-credit, not a claim that the image was edited.
+    </p>
+    <table class="lines">
+      <thead>
+        <tr><th>Fixture</th><th>Kind</th><th>Verdict</th><th>Expected</th><th>Result</th></tr>
+      </thead>
+      <tbody>
+        {% for row in metrics.payment_proof.rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ row.kind }}</td>
+          <td>{{ row.verdict }}</td>
+          <td>{{ row.expected }}</td>
+          <td>{{ 'pass' if row.pass else 'miss' }}</td>
         </tr>
         {% endfor %}
       </tbody>

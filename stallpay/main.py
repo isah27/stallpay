@@ -1,29 +1,36 @@
-"""StallPay web app: paste a WhatsApp order, check it, send a PayPal invoice."""
+"""StallPay web app: a global chat sales agent with a checked PayPal invoice."""
 from __future__ import annotations
 
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import config, db, webhooks
+from .agent import get_session, handle_buyer_message, start_session
+from .eval_scripts import evaluate_all
 from .models import ProposedOrder
 from .paypal.factory import make_paypal_client
 from .paypal.mock import MockPaypalClient
 from .samples import SAMPLES, public_sample
 from .services import (
     create_and_send,
+    create_from_session,
+    evaluate_full,
+    evaluate_proof_for_invoice,
     evaluate_samples,
     preview_order,
     preview_text,
     refresh_invoice,
     remind_invoice,
     sample_text,
+    seller_briefing,
 )
+from .shops import list_shops
 
 APP_DIR = Path(__file__).resolve().parent
 
@@ -33,7 +40,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="StallPay", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="StallPay", version="0.2.0", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
@@ -42,17 +49,31 @@ def _client():
     return make_paypal_client()
 
 
+def _metrics_payload() -> dict:
+    data = evaluate_full()
+    v1 = data.get("v1_regression") or {}
+    # Keep the original top-level keys so existing tests and links still work.
+    for key, value in v1.items():
+        data.setdefault(key, value)
+    return data
+
+
 def _page_context(request: Request, **extra):
     metrics = evaluate_samples()
+    full = _metrics_payload()
     ctx = {
         "request": request,
         "samples": [public_sample(s) for s in SAMPLES if s["category"] == "success"],
         "failures": [public_sample(s) for s in SAMPLES if s["category"] == "failure"],
+        "shops": [shop.to_public() for shop in list_shops()],
         "paypal_mode": "live" if config.paypal_is_live() else "mock",
         "llm_configured": config.LLM_AVAILABLE,
         "rate": str(config.NGN_PER_USD),
+        "mxn_rate": str(config.MXN_PER_USD),
+        "inr_rate": str(config.INR_PER_USD),
         "rate_as_of": config.RATE_AS_OF,
         "metrics": metrics,
+        "full_metrics": full,
         "invoices": [_board_row(row) for row in db.list_invoices()],
     }
     ctx.update(extra)
@@ -74,10 +95,10 @@ def health() -> dict:
 
 @app.get("/metrics")
 def metrics(request: Request, format: str | None = None):
-    data = evaluate_samples()
+    data = _metrics_payload()
     if format == "json" or (request.headers.get("accept") or "").startswith("application/json"):
         return JSONResponse(data)
-    return templates.TemplateResponse(request, "metrics.html", {"metrics": data})
+    return templates.TemplateResponse(request, "metrics.html", {"metrics": data, "full_metrics": data})
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -90,9 +111,101 @@ def api_samples():
     return [public_sample(s) for s in SAMPLES]
 
 
+@app.get("/api/shops")
+def api_shops():
+    return [shop.to_public() for shop in list_shops()]
+
+
 @app.get("/api/invoices")
 def api_invoices():
     return [_board_row(row) for row in db.list_invoices()]
+
+
+@app.get("/api/briefing")
+def api_briefing():
+    return seller_briefing()
+
+
+@app.post("/api/chats")
+async def api_start_chat(request: Request):
+    body = await request.json()
+    shop_id = str(body.get("shop_id") or "").strip()
+    try:
+        session = start_session(shop_id, body.get("language"))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown shop")
+    if body.get("buyer_name"):
+        session.buyer_name = str(body["buyer_name"]).strip()
+    if body.get("buyer_email"):
+        session.buyer_email = str(body["buyer_email"]).strip()
+    return session.to_public()
+
+
+@app.post("/api/chats/{session_id}/messages")
+async def api_chat_message(session_id: str, request: Request):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Unknown chat session")
+    body = await request.json()
+    text = str(body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Type a buyer message.")
+    if body.get("buyer_name"):
+        session.buyer_name = str(body["buyer_name"]).strip()
+    if body.get("buyer_email"):
+        session.buyer_email = str(body["buyer_email"]).strip()
+    try:
+        result = handle_buyer_message(session, text, prefer_llm=bool(body.get("prefer_llm", True)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
+
+
+@app.post("/api/chats/{session_id}/invoice")
+async def api_chat_invoice(session_id: str):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Unknown chat session")
+    result = create_from_session(session, _client())
+    status = 201 if result.get("ok") else (422 if result.get("blocked") else 502)
+    return JSONResponse(result, status_code=status)
+
+
+@app.post("/api/invoices/{pk}/proof")
+async def api_proof(
+    pk: int,
+    request: Request,
+    text: str = Form(default=""),
+    image: UploadFile | None = File(default=None),
+):
+    content_type = request.headers.get("content-type") or ""
+    image_bytes = None
+    mime = "image/png"
+    if "application/json" in content_type:
+        body = await request.json()
+        text = str(body.get("text") or "")
+        prefer_llm = bool(body.get("prefer_llm", True))
+    else:
+        prefer_llm = True
+        if image is not None:
+            mime = image.content_type or "image/png"
+            image_bytes = await image.read()
+            if len(image_bytes) > 4_000_000:
+                raise HTTPException(status_code=400, detail="The image is too large.")
+    try:
+        result = evaluate_proof_for_invoice(
+            pk,
+            _client(),
+            text=text,
+            image_bytes=image_bytes,
+            mime=mime,
+            prefer_llm=prefer_llm,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
 
 
 @app.post("/api/preview")
@@ -111,7 +224,7 @@ async def api_preview(request: Request):
     text = (body.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Paste an order or choose a sample.")
-    return preview_text(text, prefer_llm=bool(body.get("prefer_llm", True)))
+    return preview_text(text, prefer_llm=bool(body.get("prefer_llm", True)), currency=body.get("currency"))
 
 
 @app.post("/api/invoices")

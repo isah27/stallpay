@@ -130,7 +130,35 @@ class LivePaypalClient:
         pay_url = _pay_url(data)
         if not invoice_id:
             raise PaypalApiError("PayPal create/get response did not include an invoice id.")
-        return PaypalInvoice(invoice_id=str(invoice_id), status=str(status), pay_url=pay_url, raw=data)
+        amount_usd = _amount_usd(data)
+        return PaypalInvoice(
+            invoice_id=str(invoice_id),
+            status=str(status),
+            pay_url=pay_url,
+            raw=data,
+            amount_usd=amount_usd,
+        )
+
+    def record_payment(self, invoice_id: str, amount_usd: str | None = None) -> PaypalInvoice:
+        """Record a sandbox payment against an invoice (invoicer-side). Never used by receipt uploads."""
+        from datetime import date
+
+        invoice = self.get_invoice(invoice_id)
+        value = amount_usd or invoice.amount_usd
+        if not value:
+            raise PaypalApiError("Cannot record a payment without an amount.")
+        payload = {
+            "method": "OTHER",
+            "payment_date": date.today().isoformat(),
+            "amount": {"currency_code": "USD", "value": f"{value}"},
+        }
+        self._request(
+            "POST",
+            f"/v2/invoicing/invoices/{invoice_id}/payments",
+            json=payload,
+            expected=(200, 201, 204),
+        )
+        return self.get_invoice(invoice_id)
 
     def _request(
         self,
@@ -182,6 +210,30 @@ class LivePaypalClient:
         self._token_expiry = now + expires
         return token
 
+
+
+def _amount_usd(data: dict[str, Any]) -> str | None:
+    candidates = []
+    due = data.get("due_amount") or {}
+    if isinstance(due, dict) and due.get("value") and str(due.get("currency_code") or "USD").upper() == "USD":
+        # A paid invoice often has due_amount 0; prefer total if present.
+        candidates.append(due.get("value"))
+    amount = data.get("amount") or {}
+    if isinstance(amount, dict):
+        if amount.get("value"):
+            candidates.append(amount.get("value"))
+        breakdown = amount.get("breakdown") or {}
+        if isinstance(breakdown, dict):
+            item_total = breakdown.get("item_total") or breakdown.get("total") or {}
+            if isinstance(item_total, dict) and item_total.get("value"):
+                candidates.append(item_total.get("value"))
+    detail = data.get("detail") or {}
+    if isinstance(detail, dict) and isinstance(detail.get("amount"), dict):
+        candidates.append(detail["amount"].get("value"))
+    for value in candidates:
+        if value and str(value) not in {"0", "0.00"}:
+            return str(value)
+    return str(candidates[0]) if candidates else None
 
 def _split_name(full: str) -> tuple[str, str]:
     parts = [p for p in full.strip().split() if p]

@@ -6,7 +6,41 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn stallpay.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PAYPAL_MODE
-        value: mock
       - key: PYTHON_VERSION
         value: "3.13"
+      - key: PAYPAL_MODE
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_INVOICER_EMAIL
+        sync: false
+      - key: PAYPAL_INVOICER_BUSINESS_NAME
+        sync: false
+      - key: PAYPAL_BUYER_EMAIL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_AUTH_SCHEME
+        sync: false
+      - key: VISION_MODEL
+        sync: false
+      - key: NGN_PER_USD
+        sync: false
+      - key: MXN_PER_USD
+        sync: false
+      - key: INR_PER_USD
+        sync: false
+      - key: RATE_AS_OF
+        sync: false
+      - key: DATABASE_PATH
+        sync: false

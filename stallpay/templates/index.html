@@ -3,74 +3,79 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>StallPay — WhatsApp order to PayPal invoice</title>
+  <title>StallPay — a sales agent for chat sellers anywhere</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header class="top">
     <div>
-      <p class="eyebrow">For Nigerian sellers on WhatsApp</p>
+      <p class="eyebrow">For small sellers who close deals in Instagram, WhatsApp, or Telegram</p>
       <h1>StallPay</h1>
-      <p class="tagline">Paste the order. We extract the lines, a checker signs off the totals, then PayPal issues the invoice.</p>
+      <p class="tagline">It haggles in the buyer’s language, holds your floor price, and raises a PayPal invoice only after a real yes. Fake payment screenshots are checked against PayPal, not believed at face value.</p>
     </div>
     <div class="badges">
       <span class="badge">Mode: {{ paypal_mode }}</span>
-      <span class="badge">1 USD = ₦{{ rate }} <small>({{ rate_as_of }})</small></span>
-      <span class="badge">{% if llm_configured %}Model extraction on, checker still decides{% else %}Built-in extractor (no model key needed){% endif %}</span>
+      <span class="badge">1 USD = ₦{{ rate }} · MX${{ mxn_rate }} · ₹{{ inr_rate }} <small>({{ rate_as_of }})</small></span>
+      <span class="badge">{% if llm_configured %}Model drafts replies, the checker still decides{% else %}Scripted agent (no model key needed){% endif %}</span>
     </div>
   </header>
 
-  <main class="board">
-    <section class="col" id="paste-col">
-      <h2>1. The WhatsApp chat</h2>
-      <p class="hint">Try a sample or paste your own. Use a sandbox or @example.com email, never a real customer.</p>
-      <div class="samples" id="samples">
-        {% for sample in samples %}
-        <button type="button" class="sample" data-id="{{ sample.id }}" data-text="{{ sample.text | e }}">{{ sample.label }}</button>
-        {% endfor %}
-      </div>
-      <label for="chat">Order text</label>
-      <textarea id="chat" rows="10" placeholder="Paste the WhatsApp order here…"></textarea>
-      <div class="actions">
-        <button type="button" class="primary" id="preview-btn">Extract and check</button>
-      </div>
+  <section class="shops" id="shop-picker">
+    <h2>Pick a shop, then play the buyer</h2>
+    <p class="hint">No login. Try to talk the agent below its floor, or upload a fake receipt after an invoice exists. The Nigeria, Mexico, and India shops are equal demos, not a single-country product.</p>
+    <div class="shop-grid">
+      {% for shop in shops %}
+      <button type="button" class="shop-card" data-shop="{{ shop.id }}" id="shop-{{ shop.id }}">
+        <strong>{{ shop.name }}</strong>
+        <span>{{ shop.city }}, {{ shop.country }} · {{ shop.currency }}</span>
+        <em>{{ shop.seller_name }}, {{ shop.seller_title }}</em>
+      </button>
+      {% endfor %}
+    </div>
+  </section>
+
+  <main class="board board-v2">
+    <section class="col" id="chat-col">
+      <h2>Live buyer chat</h2>
+      <p class="hint" id="chat-hint">Choose a shop to start. Chat in any language. A clear yes must quote the exact price before an invoice can go out.</p>
+      <div id="thread" class="thread"></div>
+      <form id="chat-form" class="chat-form">
+        <label class="sr-only" for="buyer-input">Your message</label>
+        <input id="buyer-input" type="text" placeholder="Type as the buyer…" autocomplete="off" disabled>
+        <button type="submit" class="primary" id="send-chat-btn" disabled>Send</button>
+      </form>
+      <div class="deal-status" id="deal-status"></div>
     </section>
 
-    <section class="col" id="draft-col">
-      <h2>2. Draft and checker</h2>
-      <div id="draft-empty" class="empty">The extracted draft will appear here. If the checker fails, PayPal is not called.</div>
-      <div id="draft-panel" class="hidden">
-        <div id="check-box" class="check-box"></div>
-        <div class="field">
-          <label for="buyer-name">Buyer name</label>
-          <input id="buyer-name" type="text">
-        </div>
-        <div class="field">
-          <label for="buyer-email">Buyer email</label>
-          <input id="buyer-email" type="email">
-        </div>
-        <table class="lines" id="lines">
-          <thead>
-            <tr><th>Item</th><th>Qty</th><th>Unit (₦)</th><th>Line</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="field">
-          <label for="stated-total">Stated total (₦)</label>
-          <input id="stated-total" type="text">
-        </div>
-        <p class="conversion" id="conversion"></p>
+    <section class="col" id="proof-col">
+      <h2>Checker, invoice, and proof</h2>
+      <div id="offer-box" class="empty">The current offer, floor, and quoted yes will appear here.</div>
+      <div class="actions">
+        <button type="button" class="primary" id="invoice-btn" disabled>Create PayPal invoice</button>
+      </div>
+      <p class="hint" id="invoice-status"></p>
+      <div id="proof-panel" class="proof-panel hidden">
+        <h3>Payment proof</h3>
+        <p class="hint">Paste receipt text or upload an image. StallPay may read the fields, but only a PayPal GET can confirm payment. The image never marks the board paid.</p>
+        <textarea id="proof-text" rows="5" placeholder="Paste a receipt, bank alert, or PayPal confirmation…"></textarea>
+        <input id="proof-file" type="file" accept="image/*">
+        <button type="button" id="proof-btn">Check against PayPal</button>
+        <div id="proof-result"></div>
+      </div>
+      <div id="brief-panel">
+        <h3>Morning briefing</h3>
+        <p class="hint">A spoken summary of what closed, what landed, and who still owes. Uses the browser’s speech engine, with the written text as fallback.</p>
         <div class="actions">
-          <button type="button" id="recheck-btn">Re-check edits</button>
-          <button type="button" class="primary" id="send-btn">Create PayPal invoice</button>
+          <button type="button" id="brief-btn">Write briefing</button>
+          <button type="button" id="speak-btn" disabled>Play</button>
         </div>
-        <p class="hint" id="send-status"></p>
+        <p id="brief-text" class="brief-text"></p>
       </div>
     </section>
 
     <section class="col" id="board-col">
-      <h2>3. Invoice board</h2>
-      <p class="hint">Statuses: draft, sent, paid, reminder sent, cancelled. Use Refresh if a webhook is delayed.</p>
+      <h2>Invoice board</h2>
+      <p class="hint">Statuses: draft, sent, paid, reminder sent, cancelled. Use Refresh if a webhook is delayed. Proof rejected stays visible in the proof panel; it does not change a sent invoice to paid.</p>
       <div id="invoices">
         {% if invoices %}
           {% for inv in invoices %}
@@ -87,6 +92,7 @@
               <button type="button" class="refresh" data-id="{{ inv.id }}">Refresh status</button>
               {% if inv.status not in ['paid', 'cancelled', 'refunded'] %}
               <button type="button" class="remind" data-id="{{ inv.id }}">Send reminder</button>
+              <button type="button" class="use-proof" data-id="{{ inv.id }}">Use for proof</button>
               {% endif %}
             </div>
           </article>
@@ -98,18 +104,72 @@
     </section>
   </main>
 
+  <section class="paste-wrap">
+    <h2>Or paste a finished chat</h2>
+    <p class="hint">The original path still works: try a sample or paste your own. Use a sandbox or @example.com email, never a real customer.</p>
+    <div class="board">
+      <section class="col" id="paste-col">
+        <h3>The chat</h3>
+        <div class="samples" id="samples">
+          {% for sample in samples %}
+          <button type="button" class="sample" data-id="{{ sample.id }}" data-text="{{ sample.text | e }}">{{ sample.label }}</button>
+          {% endfor %}
+        </div>
+        <label for="chat">Order text</label>
+        <textarea id="chat" rows="8" placeholder="Paste a finished order here…"></textarea>
+        <div class="actions">
+          <button type="button" class="primary" id="preview-btn">Extract and check</button>
+        </div>
+      </section>
+      <section class="col" id="draft-col">
+        <h3>Draft and checker</h3>
+        <div id="draft-empty" class="empty">The extracted draft will appear here. If the checker fails, PayPal is not called.</div>
+        <div id="draft-panel" class="hidden">
+          <div id="check-box" class="check-box"></div>
+          <div class="field">
+            <label for="buyer-name">Buyer name</label>
+            <input id="buyer-name" type="text">
+          </div>
+          <div class="field">
+            <label for="buyer-email">Buyer email</label>
+            <input id="buyer-email" type="email">
+          </div>
+          <table class="lines" id="lines">
+            <thead>
+              <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Line</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="field">
+            <label for="stated-total">Stated total</label>
+            <input id="stated-total" type="text">
+          </div>
+          <p class="conversion" id="conversion"></p>
+          <div class="actions">
+            <button type="button" id="recheck-btn">Re-check edits</button>
+            <button type="button" class="primary" id="send-btn">Create PayPal invoice</button>
+          </div>
+          <p class="hint" id="send-status"></p>
+        </div>
+      </section>
+    </div>
+  </section>
+
   <section class="metrics-strip">
     <h2>Published numbers</h2>
     <p>
-      Built-in extractor + checker on the committed sample set:
-      {{ metrics.success_extracted_and_checked }} / {{ metrics.success_samples }} demo chats extract correctly and pass the checker.
-      {{ metrics.failure_blocked_by_checker }} / {{ metrics.failure_samples }} documented failure cases are blocked before any PayPal call.
-      <a href="/metrics">Full table</a>
+      v1 regression (built-in extractor):
+      {{ metrics.success_extracted_and_checked }} / {{ metrics.success_samples }} Lagos demo chats extract and pass.
+      {{ metrics.failure_blocked_by_checker }} / {{ metrics.failure_samples }} failure cases are blocked before PayPal.
+      Floor integrity: {{ full_metrics.floor_integrity.held }} / {{ full_metrics.floor_integrity.total }} adversarial scripts hold the floor with no below-floor invoice.
+      Agreement gate false invoices: {{ full_metrics.agreement_gate.false_invoice_count }}.
+      Payment-proof fakes caught: {{ full_metrics.payment_proof.fake_caught }} / {{ full_metrics.payment_proof.fake_total }}.
+      <a href="/metrics">Full tables</a>
     </p>
   </section>
 
   <footer>
-    <p>Sandbox only. No real money, no WhatsApp Business API, no messages to real customers. MIT licensed.</p>
+    <p>Sandbox only. Invoices are in USD with a labelled conversion from the seller’s currency. Chat runs in this app, not on the official WhatsApp, Instagram, or Telegram APIs. The receipt check is grounded in PayPal, not a claim that every edited pixel can be spotted. No messages are sent to real customers. MIT licensed.</p>
   </footer>
   <script src="/static/app.js"></script>
 </body>
