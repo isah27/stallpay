@@ -119,3 +119,29 @@ def test_sandbox_buyer_note_hidden_in_production(client, monkeypatch):
     monkeypatch.setattr(config, "PAYPAL_API_BASE", "https://api-m.paypal.com")
     assert "Sandbox test buyer" not in client.get("/").text
 
+
+def test_sandbox_invoice_billed_to_configured_buyer(client, monkeypatch):
+    """Shop chats should bill the configured sandbox buyer, not the placeholder."""
+    from stallpay import agent, config
+
+    monkeypatch.setattr(config, "PAYPAL_MODE", "mock")
+    monkeypatch.setattr(config, "PAYPAL_API_BASE", "https://api-m.sandbox.paypal.com")
+    monkeypatch.setattr(config, "PAYPAL_BUYER_EMAIL", "sb-judge@example.com")
+    session = agent.start_session("mexico")
+    assert session.buyer_email == "sb-judge@example.com"
+
+    yes = _agree_mexico(client)
+    body = yes.json()
+    assert yes.status_code == 200
+    assert body["session"]["buyer_email"] == "sb-judge@example.com"
+
+
+def test_production_invoice_keeps_shop_fallback(monkeypatch):
+    from stallpay import agent, config
+
+    monkeypatch.setattr(config, "PAYPAL_MODE", "production")
+    monkeypatch.setattr(config, "PAYPAL_API_BASE", "https://api-m.paypal.com")
+    monkeypatch.setattr(config, "PAYPAL_BUYER_EMAIL", "sb-judge@example.com")
+    session = agent.start_session("mexico")
+    assert session.buyer_email == "buyer@stallpay.example"
+    assert config.invoice_buyer_email("buyer@stallpay.example") == "buyer@stallpay.example"

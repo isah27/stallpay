@@ -347,7 +347,7 @@ def start_session(shop_id: str, language: str | None = None) -> ChatSession:
         shop_id=shop.id,
         language=chosen,
         buyer_name=shop.default_buyer_name,
-        buyer_email=shop.default_buyer_email,
+        buyer_email=config.invoice_buyer_email(shop.default_buyer_email),
     )
     session.messages.append(ChatTurn("seller", shop.greeting_for(chosen)))
     _SESSIONS[session.id] = session
@@ -439,7 +439,7 @@ def maybe_build_order(session: ChatSession) -> ProposedOrder | None:
     items = _items_at_selling_price(session)
     return ProposedOrder(
         buyer_name=session.buyer_name or session.shop.default_buyer_name,
-        buyer_email=session.buyer_email or session.shop.default_buyer_email,
+        buyer_email=session.buyer_email or config.invoice_buyer_email(session.shop.default_buyer_email),
         items=items,
         stated_total_ngn=money(session.quoted_price),
         notes="Live buyer chat",

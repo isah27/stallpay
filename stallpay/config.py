@@ -127,3 +127,17 @@ def public_sandbox_buyer() -> dict[str, str] | None:
     if not email or not password:
         return None
     return {"email": email, "password": password}
+
+
+def invoice_buyer_email(fallback: str = "buyer@stallpay.example") -> str:
+    """Email billed on a sandbox invoice.
+
+    In sandbox or mock mode, prefer the configured PAYPAL_BUYER_EMAIL so the
+    PayPal checkout is prefilled with the same test buyer shown on the order
+    card. Production keeps the caller fallback (or the placeholder).
+    """
+    fallback = (fallback or "buyer@stallpay.example").strip() or "buyer@stallpay.example"
+    if paypal_is_production():
+        return fallback
+    email = (PAYPAL_BUYER_EMAIL or "").strip()
+    return email or fallback
