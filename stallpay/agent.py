@@ -436,7 +436,13 @@ def _price_line(session: ChatSession) -> str:
     promo_item = next((item for item, _ in session.selected_items() if item.promo_is_active()), None)
     if promo_item and listed != selling:
         ends = format_promo_end(promo_item.promo_ends_at) if promo_item.promo_ends_at else ""
-        ends_bit = f" The promo ends {ends}." if ends else ""
+        ends_bit = ""
+        if ends:
+            ends_bit = {
+                "pcm": f" The promo end {ends}.",
+                "es": f" La promo termina {ends}.",
+                "hi": f" Promo {ends} tak chalega.",
+            }.get(lang, f" The promo ends {ends}.")
         return {
             "pcm": (
                 f"{item_names} na normally {format_money(listed, currency)}, "
