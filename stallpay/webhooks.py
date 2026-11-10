@@ -92,6 +92,7 @@ def _public(record: dict[str, Any]) -> dict[str, Any]:
         "buyer_email": record["buyer_email"],
         "status": record["status"],
         "paypal_invoice_id": record.get("paypal_invoice_id"),
+        "invoice_number": (record.get("check") or {}).get("invoice_number") or record.get("paypal_invoice_id"),
         "pay_url": record.get("pay_url"),
         "reminder_sent": record.get("reminder_sent"),
         "created_at": record.get("created_at"),

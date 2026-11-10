@@ -116,29 +116,6 @@
       </tbody>
     </table>
 
-    <h2>Payment-proof check</h2>
-    <p>
-      Fakes caught (not confirmed by PayPal): <strong>{{ metrics.payment_proof.fake_caught }} / {{ metrics.payment_proof.fake_total }}</strong>.
-      Genuine PayPal-paid proofs confirmed: {{ metrics.payment_proof.genuine_confirmed }} / {{ metrics.payment_proof.genuine_total }}.
-      False alarms on genuine proofs: {{ metrics.payment_proof.genuine_false_alarms }}.
-      An unverified result is a refuse-to-credit, not a claim that the image was edited.
-    </p>
-    <table class="lines">
-      <thead>
-        <tr><th>Fixture</th><th>Kind</th><th>Verdict</th><th>Expected</th><th>Result</th></tr>
-      </thead>
-      <tbody>
-        {% for row in metrics.payment_proof.rows %}
-        <tr>
-          <td>{{ row.label }}</td>
-          <td>{{ row.kind }}</td>
-          <td>{{ row.verdict }}</td>
-          <td>{{ row.expected }}</td>
-          <td>{{ 'pass' if row.pass else 'miss' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </main>
 </body>
 </html>

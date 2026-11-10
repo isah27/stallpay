@@ -10,15 +10,15 @@ Say: “Small sellers close deals in Instagram, WhatsApp, and Telegram in every 
 
 ## 0:20–1:20 — Pick a shop, hear the promo, say yes, paid
 
-On screen: the live buyer chat. The first line is “Select the shop you want to buy from.” A small language picker at the top is set to English. Pick Joyería Sofía. The agent greets in English and lists the items, with no pay link yet. Tap the silver hoop earrings — the buyer’s choice appears in the chat immediately, then the price and promo, including the real end time. The buyer tries a lower offer; the agent holds the promo price as the best price. The buyer says clearly, in English, “Okay I want it.” Only then does the PayPal sandbox invoice and pay link appear. The Personal sandbox buyer pays. Refresh shows Paid.
+On screen: the live buyer chat. The first line is “Select the shop you want to buy from.” A small language picker at the top is set to English. Pick Joyería Sofía. The agent greets in English and lists the items, with no pay link yet. Tap the silver hoop earrings — the buyer’s choice appears in the chat immediately, then the price and promo, including the real end time. The buyer tries a lower offer; the agent holds the promo price as the best price. The buyer says clearly, in English, “Okay I want it.” The chat is replaced by an order summary and a gold Proceed with PayPal button. Click I’ve already paid before paying — it should say PayPal has not confirmed payment yet. Then pay as the Personal sandbox buyer and click I’ve already paid again. The page shows that payment is confirmed.
 
-Say: “Pick a shop, choose an item, and hear the real promo, in English unless you pick another language. Your messages show up straight away. A PayPal invoice appears only after a clear yes. When the buyer actually pays, the status flips to Paid.”
+Say: “Pick a shop, choose an item, and hear the real promo, in English unless you pick another language. Your messages show up straight away. After a clear yes, the chat hides and you get a summary and a PayPal button. Payment is confirmed only when PayPal says it’s paid.”
 
-## 1:20–2:10 — Fake receipt refused
+## 1:20–2:10 — Payment confirmed only by PayPal
 
-On screen: Amaka’s Lagos stall or Priya’s Jaipur stall, after a pay link exists. The buyer pastes or uploads a fake receipt under “Already paid?” The panel refuses it. Refresh still does not show Paid.
+On screen: the order summary after a yes, still unpaid. Click I’ve already paid. The page says PayPal hasn’t confirmed payment yet, and both buttons stay. There is no receipt upload.
 
-Say: “This looks like a payment alert, but PayPal says the invoice is not paid, so the agent refuses it.”
+Say: “If someone says they’ve already paid, we don’t take a screenshot. We ask PayPal. If PayPal hasn’t recorded the payment, the order stays unpaid.”
 
 ## 2:10–2:30 — Seller tools and morning briefing
 
@@ -32,4 +32,4 @@ On screen: the /metrics tables, with the URL still visible.
 
 Say: “Sandbox only. Invoices are in USD with a labelled conversion from the seller’s currency. Chat runs in the app, not on the official WhatsApp API. The receipt check is grounded in PayPal, not a claim that every edited pixel can be spotted. Here are the published numbers, including any misses.”
 
-Current numbers to show, reproducible with pytest: price integrity 15/15, promo expiry 3/3, agreement-gate false invoices 0, payment-proof fakes caught 4/4, genuine proofs confirmed 1/1, v1 regression 5/5 extract-and-pass and 3/3 failures blocked.
+Current numbers to show, reproducible with pytest: price integrity 15/15, promo expiry 3/3, agreement-gate false invoices 0, v1 regression 5/5 extract-and-pass and 3/3 failures blocked.

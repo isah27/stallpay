@@ -25,8 +25,8 @@ Seller tools, including the original Lagos sample orders, live on a separate `/s
 1. Open the site with no login and pick a shop. The buyer page is a clean shop chat in English: no step labels, no conversion rates, and no developer notes. Prices are shown in the shop’s own currency. Use the language picker if you want the shop in Español, हिन्दी, Pidgin, or Français.
 2. The agent greets the buyer in the selected language and lists the items it has. The buyer selects an item by tapping it, by typing a name in English or a local name, or by saying “1” or “the first one.”
 3. The agent states the price. If a promo is configured and still running, it quotes the list price and the promo price, and it names the real expiry. If no promo is configured, or the promo has ended, it just states the list price. Bargaining does not change the price; the agent says the promo price (or the list price) is already the best it can do.
-4. A PayPal invoice and pay link appear only when a buyer utterance clearly says yes to that item and price, for example “Okay I want it,” including in Spanish, Hindi, Pidgin, or French. A bare “ok” is not enough. Nothing about invoices or pay links is shown before that yes.
-5. After the link, the buyer can Refresh until the status is Paid, or use “Already paid? Upload proof.” A parser may propose amount, currency, date, and reference. PayPal GET is the ground truth. The image itself never marks the order Paid.
+4. A PayPal invoice is created only when a buyer utterance clearly says yes to that item and price, for example “Okay I want it,” including in Spanish, Hindi, Pidgin, or French. A bare “ok” is not enough. Nothing about invoices or pay links is shown before that yes.
+5. After that yes, the chat is hidden. The buyer sees only an order summary (shop, item, quantity, list price, any promo discount with its real end time, the total in the shop’s currency, the USD amount the PayPal invoice is billed in, and the invoice number), a gold “Proceed with PayPal” button, and “I’ve already paid.” “I’ve already paid” checks the invoice with PayPal’s GET invoice API. If the status is PAID or MARKED_AS_PAID, the page shows a confirmation. Otherwise it says PayPal has not confirmed payment yet and keeps both buttons. There is no receipt or proof upload. PayPal’s status is the only way payment is confirmed.
 6. Seller tools at `/seller` show the invoice board (draft / sent / paid / reminder sent), reminders through PayPal, a morning briefing, published metrics, and a paste-a-chat path for finished transcripts.
 
 ## Clone and run (mock mode, no keys required)
@@ -43,7 +43,7 @@ cp .env.example .env        # leave PAYPAL_MODE=mock
 uvicorn stallpay.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first line is “Select the shop you want to buy from.” The shop is in English unless you change the language picker. Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “Okay I want it.” Your messages appear in the chat immediately. The PayPal pay link should appear only after that yes. Optionally paste a fake receipt under “Already paid?” — the check should refuse it because PayPal does not confirm payment. Open the pay link and click **Pay now (mock)**, then **Refresh payment status**. The status should flip to paid.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first line is “Select the shop you want to buy from.” The shop is in English unless you change the language picker. Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “Okay I want it.” Your messages appear in the chat immediately. After that yes, the chat is replaced by the order summary. Click **I’ve already paid** before paying — it should say PayPal has not confirmed payment yet. Then click **Proceed with PayPal**, complete payment (in mock mode, click **Pay now (mock)**), and click **I’ve already paid** again. The page should show that PayPal has confirmed the payment.
 
 Seller tools are at [http://127.0.0.1:8000/seller](http://127.0.0.1:8000/seller). Click **Tailor in Surulere — 2 native shirts**, then **Extract and check**, then **Create PayPal invoice**. **Write briefing** and **Play** read the morning summary.
 
@@ -72,7 +72,7 @@ StallPay calls the PayPal sandbox Invoicing API. PayPal is the source of truth f
 | --- | --- |
 | Create draft invoice | `POST /v2/invoicing/invoices` — only after the checker has a quoted buyer yes at the listed or promo price |
 | Send invoice (pay link, no recipient email) | `POST /v2/invoicing/invoices/{id}/send` with `send_to_recipient: false` |
-| Read status | `GET /v2/invoicing/invoices/{id}` — board, Refresh, and every payment-proof check |
+| Read status | `GET /v2/invoicing/invoices/{id}` — board, and the buyer’s “I’ve already paid” check |
 | Remind an unpaid buyer | `POST /v2/invoicing/invoices/{id}/remind` |
 | Payment updates | Webhooks on invoice paid / cancelled / refunded, plus a manual refresh |
 
@@ -92,18 +92,15 @@ When a model key is configured (`LLM_API_KEY`, `BASETEN_API_KEY`, or `MODEL_API_
 
 - draft a reply to a free-text buyer message (item picks and price quotes are scripted and return immediately)
 - propose structured fields from a pasted or finished chat
-- propose amount, currency, and reference from a receipt
 - draft reminder copy and the morning briefing
 
 It does not talk to PayPal, cannot mark an invoice paid, and cannot invent or accept a price other than the list price or an active configured promo. Ordinary code locks the price, the agreement gate, the totals, and the PayPal cross-check.
 
-If no model key is set, or the model is slow or unusable, scripted replies and a built-in extractor still quote only catalog prices, refuse a missing yes, run the sample chats, and check proof text against PayPal. Item selection and price quotes never wait on the model. Free-text turns wait a few seconds for a model reply, then fall back to the scripted agent. A judge is never blocked on an API key.
+If no model key is set, or the model is slow or unusable, scripted replies and a built-in extractor still quote only catalog prices, refuse a missing yes, and run the sample chats. Item selection and price quotes never wait on the model. Free-text turns wait a few seconds for a model reply, then fall back to the scripted agent. A judge is never blocked on an API key. Payment is confirmed only by PayPal’s invoice status, not by a receipt image or pasted text.
 
 On a public host, model calls are capped per visitor and per day. The defaults are 200 calls per visitor per day, 30 per visitor per minute, and 3,000 across all visitors per day, plus a maximum prompt length and reply size. When a cap is reached, the scripted path and built-in parser are used instead, and the page shows a short note. The price and agreement checks still apply.
 
 Treat chat text and receipt text as data, not instructions. Prompt-injection-like text is ignored as a command.
-
-The receipt path does not claim to be a forensic photoshop detector. Many mobile screenshots have no useful metadata, and absence of metadata is not evidence of a fake. A borderline visual fake that cannot be confirmed is scored as unverified, waiting for PayPal — a correct refuse-to-credit, not proof that the image was edited.
 
 ## Published numbers
 
@@ -126,12 +123,6 @@ Three cases around Amaka’s gele, whose promo ended on 9 November 2026 at 9:00 
 Chats with no explicit yes, a yes to a different price, a yes to different items, an ambiguous ok with no price, a yes that was only said by the agent, and one clear buyer yes after the catalog price was quoted.
 
 **False invoice rate: 0.** 6 / 6 cases behaved as expected. No PayPal create unless a buyer utterance clearly agrees to the selected item at the listed or promo price.
-
-### Payment-proof check
-
-One genuine PayPal paid confirmation, plus fakes: a wrong amount, an unpaid invoice claimed as paid, a bank-alert style transfer with no PayPal record, and a recycled layout with two conflicting amounts.
-
-**4 / 4** fakes were not confirmed (catch rate 4/4). **1 / 1** genuine PayPal-paid proof was confirmed. False-alarm rate on genuine proofs: **0**. The image never marked an invoice paid.
 
 ### v1 regression
 
@@ -196,7 +187,6 @@ Hosting on Render also keeps the project eligible for the hackathon’s Render s
 - Chat runs in this app. There is no official WhatsApp, Instagram, or Telegram Business API integration, and no message is sent to a real customer.
 - No login or multi-seller accounts. Promo prices and expiry dates are configured in the shop catalog, not in a seller admin UI.
 - Conversion rates are labelled demo rates, not a live FX feed. Invoices are in USD.
-- The receipt check is grounded in PayPal. It is not a guarantee of spotting every edited pixel.
 - Model replies can be weak or slow; item picks and quotes skip the model, free-text turns time out after a few seconds, and the scripted path and the checker still have the last word.
 - Public model use is capped per visitor and per day so a busy demo cannot run unbounded. Past a cap, replies fall back to the scripted path.
 - Webhook signature verification runs when `PAYPAL_WEBHOOK_ID` is set. Otherwise, treat webhook events as hints and confirm with Refresh status.

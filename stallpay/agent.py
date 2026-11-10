@@ -13,7 +13,7 @@ from .languages import normalize_language
 from .limits import attach_usage_note
 from .llm_client import LlmError, complete
 from .models import LineItem, ProposedOrder
-from .money import format_money, money, parse_amounts
+from .money import format_money, format_usd, money, parse_amounts, to_usd
 from .shops import CatalogItem, Shop, format_promo_end, get_shop
 
 _SESSIONS: dict[str, "ChatSession"] = {}
@@ -98,8 +98,10 @@ class ChatSession:
     buyer_email: str = ""
     invoice_pk: int | None = None
     paypal_invoice_id: str | None = None
+    invoice_number: str | None = None
     pay_url: str | None = None
     invoice_status: str | None = None
+    usd_total: Decimal | None = None
     price_events: list[PriceEvent] = field(default_factory=list)
     last_proof: dict[str, Any] | None = None
 
@@ -153,6 +155,66 @@ class ChatSession:
             return "price"
         return "item"
 
+    def order_summary(self) -> dict[str, Any] | None:
+        if not (self.closed or self.pay_url or self.invoice_pk):
+            return None
+        shop = self.shop
+        currency = shop.currency
+        listed = self.list_total()
+        selling = self.selling_total()
+        items = []
+        promo_end = None
+        for item, qty in self.selected_items():
+            line_list = money(item.list_price * qty)
+            line_sell = money(item.selling_price() * qty)
+            discount = money(line_list - line_sell) if line_list > line_sell else None
+            if item.promo_is_active() and item.promo_ends_at:
+                promo_end = format_promo_end(item.promo_ends_at)
+            items.append(
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "quantity": str(qty),
+                    "list_price": str(line_list),
+                    "list_price_display": format_money(line_list, currency),
+                    "selling_price": str(line_sell),
+                    "selling_price_display": format_money(line_sell, currency),
+                    "promo_active": item.promo_is_active() and discount is not None,
+                    "promo_discount": None if discount is None else str(discount),
+                    "promo_discount_display": None if discount is None else format_money(discount, currency),
+                    "promo_ends_display": format_promo_end(item.promo_ends_at) if item.promo_is_active() and item.promo_ends_at else None,
+                }
+            )
+        discount_total = money(listed - selling) if listed is not None and selling is not None and listed > selling else None
+        usd = self.usd_total
+        if usd is None and selling is not None:
+            from . import config
+
+            try:
+                usd = to_usd(selling, config.rate_for(currency))
+            except ValueError:
+                usd = None
+        number = self.invoice_number or self.paypal_invoice_id
+        return {
+            "shop_name": shop.name,
+            "shop_id": shop.id,
+            "city": shop.city,
+            "country": shop.country,
+            "currency": currency,
+            "items": items,
+            "list_total": None if listed is None else str(money(listed)),
+            "list_total_display": None if listed is None else format_money(listed, currency),
+            "promo_discount": None if discount_total is None else str(discount_total),
+            "promo_discount_display": None if discount_total is None else format_money(discount_total, currency),
+            "promo_ends_display": promo_end,
+            "total": None if selling is None else str(money(selling)),
+            "total_display": None if selling is None else format_money(selling, currency),
+            "usd_total": None if usd is None else str(money(usd)),
+            "usd_total_display": None if usd is None else format_usd(usd),
+            "invoice_number": number,
+            "paypal_invoice_id": self.paypal_invoice_id,
+        }
+
     def to_public(self) -> dict[str, Any]:
         shop = self.shop
         currency = shop.currency
@@ -196,6 +258,8 @@ class ChatSession:
                     "paypal_invoice_id": self.paypal_invoice_id,
                     "pay_url": self.pay_url,
                     "invoice_status": self.invoice_status,
+                    "invoice_number": self.invoice_number or self.paypal_invoice_id,
+                    "order_summary": self.order_summary(),
                 }
             )
         else:
@@ -205,6 +269,8 @@ class ChatSession:
                     "paypal_invoice_id": None,
                     "pay_url": None,
                     "invoice_status": None,
+                    "invoice_number": None,
+                    "order_summary": None,
                 }
             )
         return data

@@ -131,12 +131,18 @@ class LivePaypalClient:
         if not invoice_id:
             raise PaypalApiError("PayPal create/get response did not include an invoice id.")
         amount_usd = _amount_usd(data)
+        invoice_number = (
+            (data.get("detail") or {}).get("invoice_number")
+            or data.get("invoice_number")
+            or None
+        )
         return PaypalInvoice(
             invoice_id=str(invoice_id),
             status=str(status),
             pay_url=pay_url,
             raw=data,
             amount_usd=amount_usd,
+            invoice_number=str(invoice_number) if invoice_number else None,
         )
 
     def record_payment(self, invoice_id: str, amount_usd: str | None = None) -> PaypalInvoice:

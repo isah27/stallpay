@@ -56,8 +56,8 @@ Optional model drafts multilingual shop replies, structured extraction, receipt 
 
 1. Open https://stallpay.onrender.com/, or run the README local path in mock mode (no keys required). The first visit after idle time on the free host can take about a minute.
 2. The first line is “Select the shop you want to buy from.” The shop is in English unless you change the language picker (English, Español, हिन्दी, Pidgin, or Français). Pick Joyería Sofía. Choose the silver hoop earrings (tap or type, including a local name such as “aretes”). Your choice should appear in the chat straight away. Read the list price and the promo, including when it ends. Try to bargain it down; the price should not change. Then say clearly that you want it, for example “Okay I want it.”
-3. Only then should a PayPal pay link appear. In mock mode, open it and click pay, then Refresh. In live sandbox mode, pay as the Personal sandbox buyer and Refresh until Paid.
-4. Under “Already paid?,” paste a fake bank alert. Confirm that the proof is refused and Refresh does not flip to Paid.
+3. Only then should the chat hide and an order summary appear, with Proceed with PayPal and I’ve already paid. Click I’ve already paid before paying — it should say PayPal has not confirmed payment yet. In mock mode, open Proceed with PayPal and click pay, then I’ve already paid again. In live sandbox mode, pay as the Personal sandbox buyer and click I’ve already paid until it confirms.
+4. There is no receipt or proof upload. Payment is confirmed only by PayPal’s invoice status.
 5. Open Seller tools for the invoice board, Write briefing, and Play.
 6. Open `/metrics` for the published tables.
 

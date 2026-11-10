@@ -7,10 +7,13 @@ from typing import Any
 from ..models import CheckResult, PaypalInvoice, ProposedOrder
 
 _STORE: dict[str, dict[str, Any]] = {}
+_NEXT_NUMBER = 1
 
 
 def reset_store() -> None:
+    global _NEXT_NUMBER
     _STORE.clear()
+    _NEXT_NUMBER = 1
 
 
 class MockPaypalClient:
@@ -20,7 +23,10 @@ class MockPaypalClient:
         self.public_base_url = public_base_url.rstrip("/")
 
     def create_invoice(self, order: ProposedOrder, check: CheckResult, invoice_note: str) -> PaypalInvoice:
+        global _NEXT_NUMBER
         invoice_id = "MOCK-" + secrets.token_hex(4).upper()
+        invoice_number = f"{_NEXT_NUMBER:04d}"
+        _NEXT_NUMBER += 1
         record = {
             "id": invoice_id,
             "status": "DRAFT",
@@ -28,6 +34,7 @@ class MockPaypalClient:
             "buyer_email": order.buyer_email,
             "buyer_name": order.buyer_name,
             "usd_total": str(check.usd_total),
+            "invoice_number": invoice_number,
             "note": invoice_note,
             "reminded": False,
         }
@@ -73,4 +80,11 @@ class MockPaypalClient:
             status=record["status"],
             pay_url=record.get("pay_url"),
             raw=dict(record),
+            amount_usd=record.get("usd_total"),
+            invoice_number=record.get("invoice_number"),
         )
+
+    def set_status(self, invoice_id: str, status: str) -> PaypalInvoice:
+        record = self._require(invoice_id)
+        record["status"] = status
+        return self._to_invoice(record)

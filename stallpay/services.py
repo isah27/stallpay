@@ -85,13 +85,18 @@ def create_and_send(
         sent = client.send_invoice(created.invoice_id)
     except (PaypalApiError, ValueError, KeyError) as exc:
         return {"ok": False, "blocked": False, "error": str(exc), "order": order.to_dict(), "check": check.to_dict()}
+    check_data = check.to_dict()
+    if sent.invoice_number:
+        check_data["invoice_number"] = sent.invoice_number
+    if sent.amount_usd:
+        check_data["paypal_amount_usd"] = sent.amount_usd
     record = db.insert_invoice(
         {
             "buyer_name": order.buyer_name,
             "buyer_email": order.buyer_email,
             "raw_text": order.raw_text,
             "extraction": order.to_dict(),
-            "check": check.to_dict(),
+            "check": check_data,
             "paypal_invoice_id": sent.invoice_id,
             "status": map_paypal_status(sent.status) if sent.status != "DRAFT" else "sent",
             "pay_url": sent.pay_url,
@@ -131,6 +136,18 @@ def create_from_session(session: ChatSession, client) -> dict[str, Any]:
         session.paypal_invoice_id = result["invoice"]["paypal_invoice_id"]
         session.pay_url = result["invoice"].get("pay_url")
         session.invoice_status = result["invoice"].get("status")
+        check_data = (result.get("check") or {})
+        invoice_public = result["invoice"]
+        session.invoice_number = (
+            invoice_public.get("invoice_number")
+            or check_data.get("invoice_number")
+        )
+        usd_value = check_data.get("paypal_amount_usd") or check_data.get("usd_total")
+        if usd_value is not None:
+            from .money import money as _money
+            from decimal import Decimal
+
+            session.usd_total = _money(Decimal(str(usd_value)))
         result["session"] = session.to_public()
     else:
         result["session"] = session.to_public()
@@ -160,6 +177,39 @@ def refresh_invoice(pk: int, client) -> dict[str, Any]:
         raise KeyError("Invoice not found")
     updated = refresh_from_paypal(record, client)
     return _public(updated)
+
+
+PAID_PAYPAL_STATUSES = {"PAID", "MARKED_AS_PAID"}
+
+
+def confirm_already_paid(pk: int, client) -> dict[str, Any]:
+    """Confirm payment only from a PayPal GET invoice call, never from a receipt."""
+    record = db.get_invoice_by_pk(pk)
+    if not record:
+        raise KeyError("Invoice not found")
+    paypal_id = record.get("paypal_invoice_id")
+    if not paypal_id:
+        raise ValueError("This order has no PayPal invoice id.")
+    updated = refresh_from_paypal(record, client)
+    public = _public(updated)
+    paypal_status = ""
+    try:
+        invoice = client.get_invoice(paypal_id)
+        paypal_status = str(invoice.status or "")
+    except Exception:
+        paypal_status = str((updated or record).get("status") or "")
+    paid = paypal_status.upper() in PAID_PAYPAL_STATUSES or public.get("status") == "paid"
+    if paid:
+        message = "PayPal has confirmed this payment. Thank you — you're all set."
+    else:
+        message = "PayPal hasn't confirmed payment yet. You can proceed with PayPal, or check again in a moment."
+    return {
+        "paid": paid,
+        "paypal_status": paypal_status or public.get("status"),
+        "status": public.get("status"),
+        "message": message,
+        "invoice": public,
+    }
 
 
 def evaluate_proof_for_invoice(

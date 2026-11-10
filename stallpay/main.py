@@ -22,6 +22,7 @@ from .services import (
     create_and_send,
     create_from_session,
     evaluate_full,
+    confirm_already_paid,
     evaluate_proof_for_invoice,
     evaluate_samples,
     preview_order,
@@ -220,6 +221,17 @@ async def api_chat_invoice(session_id: str):
     result = create_from_session(session, _client())
     status = 201 if result.get("ok") else (422 if result.get("blocked") else 502)
     return JSONResponse(result, status_code=status)
+
+
+@app.post("/api/invoices/{pk}/already-paid")
+async def api_already_paid(pk: int):
+    try:
+        result = await asyncio.to_thread(confirm_already_paid, pk, _client())
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
 
 
 @app.post("/api/invoices/{pk}/proof")

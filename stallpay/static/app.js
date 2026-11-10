@@ -8,25 +8,18 @@ const dealStatus = document.getElementById('deal-status');
 const itemChips = document.getElementById('item-chips');
 const shopTitle = document.getElementById('shop-title');
 const shopSub = document.getElementById('shop-sub');
-const payCard = document.getElementById('pay-card');
-const paySummary = document.getElementById('pay-summary');
-const payLink = document.getElementById('pay-link');
+const chatUi = document.getElementById('chat-ui');
+const orderCard = document.getElementById('order-card');
 const payStatus = document.getElementById('pay-status');
-const refreshBtn = document.getElementById('refresh-btn');
-const proofText = document.getElementById('proof-text');
-const proofFile = document.getElementById('proof-file');
-const proofBtn = document.getElementById('proof-btn');
-const proofResult = document.getElementById('proof-result');
+const paypalBtn = document.getElementById('paypal-btn');
+const alreadyPaidBtn = document.getElementById('already-paid-btn');
 const openLoader = document.getElementById('open-loader');
 
 const langSelect = document.getElementById('lang-select');
 const shopsHeading = document.getElementById('shops-heading');
 const changeShopBtn = document.getElementById('change-shop-btn');
-const payTitle = document.getElementById('pay-title');
-const payLinkLabel = document.getElementById('pay-link-label');
-const proofTitle = document.getElementById('proof-title');
-const proofHint = document.getElementById('proof-hint');
 const sellerToolsLink = document.getElementById('seller-tools-link');
+const summaryTitle = document.getElementById('summary-title');
 const openLoaderText = document.getElementById('open-loader-text');
 const langLabel = document.getElementById('lang-label');
 
@@ -168,14 +161,99 @@ const UI_TEXT = {
   },
 };
 
+
+const UI_SUMMARY = {
+  en: {
+    summaryTitle: 'Order summary',
+    thItem: 'Item',
+    thQty: 'Qty',
+    thPrice: 'List price',
+    labelList: 'List price',
+    labelPromo: 'Promo discount',
+    labelTotal: 'Total',
+    labelUsd: 'Billed in USD',
+    labelInvoice: 'Invoice number',
+    alreadyPaid: "I've already paid",
+    paidConfirm: "PayPal has confirmed this payment. Thank you — you're all set.",
+    notPaidYet: "PayPal hasn't confirmed payment yet. You can proceed with PayPal, or check again in a moment.",
+    promoUntil: 'Ends {ends}',
+    checkError: 'We could not check with PayPal just now. Please try again.',
+  },
+  es: {
+    summaryTitle: 'Resumen del pedido',
+    thItem: 'Artículo',
+    thQty: 'Cant.',
+    thPrice: 'Precio de lista',
+    labelList: 'Precio de lista',
+    labelPromo: 'Descuento de promo',
+    labelTotal: 'Total',
+    labelUsd: 'Facturado en USD',
+    labelInvoice: 'Número de factura',
+    alreadyPaid: 'Ya pagué',
+    paidConfirm: 'PayPal confirmó este pago. Gracias, ya está listo.',
+    notPaidYet: 'PayPal aún no confirma el pago. Puedes continuar con PayPal, o volver a comprobar en un momento.',
+    promoUntil: 'Termina {ends}',
+    checkError: 'No pudimos consultar a PayPal ahora. Inténtalo de nuevo.',
+  },
+  hi: {
+    summaryTitle: 'Order summary',
+    thItem: 'Item',
+    thQty: 'Qty',
+    thPrice: 'List price',
+    labelList: 'List price',
+    labelPromo: 'Promo discount',
+    labelTotal: 'Total',
+    labelUsd: 'USD mein bill',
+    labelInvoice: 'Invoice number',
+    alreadyPaid: 'Maine pehle pay kar diya hai',
+    paidConfirm: 'PayPal ne is payment ko confirm kar diya hai. Shukriya, ho gaya.',
+    notPaidYet: 'PayPal ne abhi payment confirm nahi kiya. PayPal se proceed karein, ya thodi der baad check karein.',
+    promoUntil: '{ends} tak',
+    checkError: 'PayPal se check nahi ho paya. Phir se try karein.',
+  },
+  pcm: {
+    summaryTitle: 'Order summary',
+    thItem: 'Item',
+    thQty: 'Qty',
+    thPrice: 'List price',
+    labelList: 'List price',
+    labelPromo: 'Promo discount',
+    labelTotal: 'Total',
+    labelUsd: 'Dem bill am in USD',
+    labelInvoice: 'Invoice number',
+    alreadyPaid: 'I don pay already',
+    paidConfirm: 'PayPal don confirm this payment. Thank you, e don set.',
+    notPaidYet: 'PayPal never confirm the payment. You fit proceed with PayPal, or check again small time.',
+    promoUntil: 'E end {ends}',
+    checkError: 'We no fit check with PayPal now. Abeg try again.',
+  },
+  fr: {
+    summaryTitle: 'Récapitulatif de la commande',
+    thItem: 'Article',
+    thQty: 'Qté',
+    thPrice: 'Prix affiché',
+    labelList: 'Prix affiché',
+    labelPromo: 'Remise promo',
+    labelTotal: 'Total',
+    labelUsd: 'Facturé en USD',
+    labelInvoice: 'Numéro de facture',
+    alreadyPaid: "J'ai déjà payé",
+    paidConfirm: 'PayPal a confirmé ce paiement. Merci, tout est en ordre.',
+    notPaidYet: "PayPal n'a pas encore confirmé le paiement. Vous pouvez continuer avec PayPal, ou vérifier à nouveau dans un instant.",
+    promoUntil: 'Se termine {ends}',
+    checkError: 'Impossible de vérifier auprès de PayPal pour le moment. Veuillez réessayer.',
+  },
+};
+
 function currentLang() {
   const stored = (sessionStorage.getItem('stallpay-lang') || (langSelect && langSelect.value) || 'en').toLowerCase();
   return UI_TEXT[stored] ? stored : 'en';
 }
 
 function t(key) {
-  const pack = UI_TEXT[currentLang()] || UI_TEXT.en;
-  return pack[key] || UI_TEXT.en[key] || key;
+  const lang = currentLang();
+  const pack = Object.assign({}, UI_TEXT.en, UI_SUMMARY.en, UI_TEXT[lang] || {}, UI_SUMMARY[lang] || {});
+  return pack[key] || key;
 }
 
 function applyUI() {
@@ -189,15 +267,27 @@ function applyUI() {
   const inputLabel = document.querySelector('label[for="buyer-input"]');
   if (inputLabel) inputLabel.textContent = t('yourMessage');
   if (sendChatBtn) sendChatBtn.textContent = t('send');
-  if (payTitle) payTitle.textContent = t('payTitle');
-  if (payLinkLabel) payLinkLabel.textContent = t('payLink');
-  if (refreshBtn) refreshBtn.textContent = t('refresh');
-  if (proofTitle) proofTitle.textContent = t('proofTitle');
-  if (proofHint) proofHint.textContent = t('proofHint');
-  if (proofText) proofText.placeholder = t('proofPlaceholder');
-  if (proofBtn) proofBtn.textContent = t('proofBtn');
   if (openLoaderText) openLoaderText.textContent = t('opening');
   if (sellerToolsLink) sellerToolsLink.textContent = t('sellerTools');
+  if (summaryTitle) summaryTitle.textContent = t('summaryTitle');
+  const ids = {
+    'th-item': 'thItem',
+    'th-qty': 'thQty',
+    'th-price': 'thPrice',
+    'label-list': 'labelList',
+    'label-promo': 'labelPromo',
+    'label-total': 'labelTotal',
+    'label-usd': 'labelUsd',
+    'label-invoice': 'labelInvoice',
+  };
+  Object.keys(ids).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t(ids[id]);
+  });
+  if (alreadyPaidBtn && !orderCard.classList.contains('paid-confirmed')) {
+    alreadyPaidBtn.textContent = t('alreadyPaid');
+  }
+  if (session && session.pay_url) renderPay(session);
 }
 
 let session = null;
@@ -240,7 +330,7 @@ function showShops() {
   session = null;
   viewShops.classList.remove('hidden');
   viewChat.classList.add('hidden');
-  payCard.classList.add('hidden');
+  hideOrderCard();
   dealStatus.textContent = '';
   document.querySelectorAll('.shop-card').forEach((card) => card.classList.remove('active'));
 }
@@ -302,24 +392,73 @@ function renderChips(shop, selectedIds) {
     .join('');
 }
 
+function hideOrderCard() {
+  if (chatUi) chatUi.classList.remove('hidden');
+  if (orderCard) {
+    orderCard.classList.add('hidden');
+    orderCard.classList.remove('paid-confirmed');
+  }
+  if (payStatus) {
+    payStatus.textContent = '';
+    payStatus.className = 'pay-status';
+  }
+}
+
 function renderPay(sess) {
-  if (!sess || !sess.pay_url) {
-    payCard.classList.add('hidden');
+  if (!sess || !sess.pay_url || !sess.order_summary) {
+    hideOrderCard();
     return;
   }
-  payCard.classList.remove('hidden');
-  const price = sess.quoted_price_display || '';
-  const names = (sess.items || []).map((item) => item.name).join(', ');
-  paySummary.textContent = (names || 'Your item') + (price ? ' · ' + price : '');
-  payLink.href = sess.pay_url;
+  if (chatUi) chatUi.classList.add('hidden');
+  orderCard.classList.remove('hidden');
+  const summary = sess.order_summary;
+  const shopLine = [summary.shop_name, summary.city, summary.country].filter(Boolean).join(' · ');
+  document.getElementById('summary-shop').textContent = shopLine;
+  const lines = document.getElementById('summary-lines');
+  lines.innerHTML = (summary.items || [])
+    .map((item) => {
+      return (
+        '<tr><td>' + escapeHtml(item.name) + '</td><td>' +
+        escapeHtml(item.quantity) + '</td><td>' +
+        escapeHtml(item.list_price_display) + '</td></tr>'
+      );
+    })
+    .join('');
+  document.getElementById('summary-list').textContent = summary.list_total_display || '';
+  const promoRow = document.getElementById('summary-promo-row');
+  if (summary.promo_discount_display) {
+    promoRow.classList.remove('hidden');
+    let promo = '−' + summary.promo_discount_display;
+    if (summary.promo_ends_display) {
+      promo += '<span class="promo-end">' + escapeHtml(t('promoUntil').replace('{ends}', summary.promo_ends_display)) + '</span>';
+    }
+    document.getElementById('summary-promo').innerHTML = promo;
+  } else {
+    promoRow.classList.add('hidden');
+    document.getElementById('summary-promo').textContent = '';
+  }
+  document.getElementById('summary-total').textContent = summary.total_display || '';
+  const usd = summary.usd_total_display || '';
+  document.getElementById('summary-usd').textContent = usd ? usd + ' USD' : '';
+  document.getElementById('summary-invoice').textContent = summary.invoice_number || sess.invoice_number || '';
+  paypalBtn.href = sess.pay_url;
+  paypalBtn.textContent = 'Proceed with PayPal';
+  alreadyPaidBtn.textContent = t('alreadyPaid');
   const status = (sess.invoice_status || '').toLowerCase();
   if (status === 'paid') {
-    payStatus.textContent = t('paid');
-  } else if (status) {
-    payStatus.textContent = t('waiting');
-  } else {
+    showPaidConfirmation();
+  } else if (!payStatus.dataset.locked) {
     payStatus.textContent = '';
+    payStatus.className = 'pay-status';
+    orderCard.classList.remove('paid-confirmed');
   }
+}
+
+function showPaidConfirmation() {
+  orderCard.classList.add('paid-confirmed');
+  payStatus.textContent = t('paidConfirm');
+  payStatus.className = 'pay-status paid';
+  payStatus.dataset.locked = '1';
 }
 
 function renderSession(sess) {
@@ -328,8 +467,10 @@ function renderSession(sess) {
   const shop = sess.shop;
   shopTitle.textContent = shop.name;
   shopSub.textContent = shop.city + (shop.seller_name ? ' · ' + shop.seller_name : '');
-  renderThread(sess.messages);
-  renderChips(shop, (sess.items || []).map((item) => item.id));
+  if (!(sess.pay_url && sess.order_summary)) {
+    renderThread(sess.messages);
+    renderChips(shop, (sess.items || []).map((item) => item.id));
+  }
   dealStatus.textContent = '';
   renderPay(sess);
 }
@@ -341,8 +482,8 @@ async function startShop(shopId) {
   });
   viewShops.classList.add('hidden');
   viewChat.classList.remove('hidden');
-  payCard.classList.add('hidden');
-  proofResult.innerHTML = '';
+  hideOrderCard();
+  if (payStatus) delete payStatus.dataset.locked;
   dealStatus.textContent = '';
   if (card) {
     shopTitle.textContent = (card.querySelector('strong') || {}).textContent || 'Shop';
@@ -402,7 +543,7 @@ function sendBuyer(payload, displayText) {
       hideTyping();
       dealStatus.textContent = t('sendError');
     } finally {
-      buyerInput.focus();
+      if (buyerInput && chatUi && !chatUi.classList.contains('hidden')) buyerInput.focus();
     }
   };
   sendChain = sendChain.then(run, run);
@@ -429,53 +570,31 @@ chatForm.addEventListener('submit', (event) => {
   sendBuyer({ text }, text);
 });
 
-refreshBtn.addEventListener('click', async () => {
+alreadyPaidBtn.addEventListener('click', async () => {
   if (!session || !session.invoice_pk) return;
-  refreshBtn.disabled = true;
+  alreadyPaidBtn.disabled = true;
   try {
-    const res = await fetch('/api/invoices/' + session.invoice_pk + '/refresh', { method: 'POST' });
+    const res = await fetch('/api/invoices/' + session.invoice_pk + '/already-paid', { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
-      payStatus.textContent = t('refreshError');
+      payStatus.textContent = t('checkError');
+      payStatus.className = 'pay-status unpaid';
       return;
     }
     session.invoice_status = data.status;
-    renderPay(session);
-  } finally {
-    refreshBtn.disabled = false;
-  }
-});
-
-proofBtn.addEventListener('click', async () => {
-  if (!session || !session.invoice_pk) {
-    proofResult.innerHTML = '<p class="hint">' + escapeHtml(t('proofNeedDeal')) + '</p>';
-    return;
-  }
-  proofBtn.disabled = true;
-  try {
-    const file = proofFile.files && proofFile.files[0];
-    let res;
-    if (file) {
-      const body = new FormData();
-      body.append('text', proofText.value);
-      body.append('image', file);
-      res = await fetch('/api/invoices/' + session.invoice_pk + '/proof', { method: 'POST', body });
+    if (data.paid) {
+      showPaidConfirmation();
     } else {
-      res = await fetch('/api/invoices/' + session.invoice_pk + '/proof', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: proofText.value }),
-      });
+      orderCard.classList.remove('paid-confirmed');
+      payStatus.textContent = t('notPaidYet');
+      payStatus.className = 'pay-status unpaid';
+      delete payStatus.dataset.locked;
     }
-    const data = await res.json();
-    if (!res.ok) {
-      proofResult.innerHTML = '<div class="verdict amount_or_reference_mismatch">' + escapeHtml(data.detail || t('proofError')) + '</div>';
-      return;
-    }
-    proofResult.innerHTML =
-      '<div class="verdict ' + escapeHtml(data.verdict) + '"><strong>' + escapeHtml(data.summary) + '</strong></div>';
+  } catch (err) {
+    payStatus.textContent = t('checkError');
+    payStatus.className = 'pay-status unpaid';
   } finally {
-    proofBtn.disabled = false;
+    alreadyPaidBtn.disabled = false;
   }
 });
 

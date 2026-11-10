@@ -189,6 +189,7 @@ class PaypalInvoice:
     pay_url: str | None
     raw: dict[str, Any] = field(default_factory=dict)
     amount_usd: str | None = None
+    invoice_number: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -196,4 +197,5 @@ class PaypalInvoice:
             "status": self.status,
             "pay_url": self.pay_url,
             "amount_usd": self.amount_usd,
+            "invoice_number": self.invoice_number,
         }

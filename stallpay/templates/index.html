@@ -39,40 +39,64 @@
   </section>
 
   <main class="buyer-stage view hidden" id="view-chat">
-    <section class="col chat-shell">
-      <div class="chat-head">
-        <div>
-          <h2 id="shop-title">Shop</h2>
-          <p class="hint" id="shop-sub"></p>
+    <section class="col chat-shell" id="chat-shell">
+      <div id="chat-ui">
+        <div class="chat-head">
+          <div>
+            <h2 id="shop-title">Shop</h2>
+            <p class="hint" id="shop-sub"></p>
+          </div>
+          <button type="button" class="text-btn" id="change-shop-btn">Change shop</button>
         </div>
-        <button type="button" class="text-btn" id="change-shop-btn" id="change-shop-btn-label">Change shop</button>
+        <div id="item-chips" class="item-chips" hidden></div>
+        <div id="thread" class="thread" role="log" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form">
+          <label class="sr-only" for="buyer-input">Your message</label>
+          <input id="buyer-input" type="text" placeholder="Write a message…" data-i18n-placeholder="input" autocomplete="off" enterkeyhint="send">
+          <button type="submit" class="primary" id="send-chat-btn">Send</button>
+        </form>
+        <p class="deal-status" id="deal-status"></p>
       </div>
-      <div id="item-chips" class="item-chips" hidden></div>
-      <div id="thread" class="thread" role="log" aria-live="polite"></div>
-      <form id="chat-form" class="chat-form">
-        <label class="sr-only" for="buyer-input">Your message</label>
-        <input id="buyer-input" type="text" placeholder="Write a message…" data-i18n-placeholder="input" autocomplete="off" enterkeyhint="send">
-        <button type="submit" class="primary" id="send-chat-btn">Send</button>
-      </form>
-      <p class="deal-status" id="deal-status"></p>
 
-      <div id="pay-card" class="pay-card hidden">
-        <h3 id="pay-title">Pay for this order</h3>
-        <p id="pay-summary"></p>
-        <p><a id="pay-link" href="#" target="_blank" rel="noopener" id="pay-link-label">Pay with PayPal</a></p>
-        <div class="actions">
-          <button type="button" id="refresh-btn">Refresh payment status</button>
-        </div>
-        <p class="hint" id="pay-status"></p>
-        <div id="proof-panel" class="proof-panel">
-          <h3 id="proof-title">Already paid?</h3>
-          <p class="hint" id="proof-hint">Send a photo or the text of your receipt and we’ll check it.</p>
-          <textarea id="proof-text" rows="4" placeholder="Paste your receipt here…"></textarea>
-          <input id="proof-file" type="file" accept="image/*">
-          <button type="button" id="proof-btn">Check my payment</button>
-          <div id="proof-result"></div>
-        </div>
-      </div>
+      <section id="order-card" class="order-card hidden" aria-live="polite">
+        <h2 id="summary-title">Order summary</h2>
+        <p class="summary-shop" id="summary-shop"></p>
+        <table class="summary-table" id="summary-table">
+          <thead>
+            <tr>
+              <th id="th-item">Item</th>
+              <th id="th-qty">Qty</th>
+              <th id="th-price">List price</th>
+            </tr>
+          </thead>
+          <tbody id="summary-lines"></tbody>
+        </table>
+        <dl class="summary-totals">
+          <div>
+            <dt id="label-list">List price</dt>
+            <dd id="summary-list"></dd>
+          </div>
+          <div id="summary-promo-row" class="hidden">
+            <dt id="label-promo">Promo discount</dt>
+            <dd id="summary-promo"></dd>
+          </div>
+          <div>
+            <dt id="label-total">Total</dt>
+            <dd id="summary-total"></dd>
+          </div>
+          <div>
+            <dt id="label-usd">Billed in USD</dt>
+            <dd id="summary-usd"></dd>
+          </div>
+          <div>
+            <dt id="label-invoice">Invoice number</dt>
+            <dd id="summary-invoice"></dd>
+          </div>
+        </dl>
+        <a id="paypal-btn" class="paypal-btn" href="#" target="_blank" rel="noopener">Proceed with PayPal</a>
+        <button type="button" id="already-paid-btn" class="already-paid-btn">I've already paid</button>
+        <p class="pay-status" id="pay-status" role="status"></p>
+      </section>
     </section>
   </main>
 

@@ -1,7 +1,7 @@
 from stallpay.shops import get_shop
 
 
-def test_shops_and_chat_invoice_and_fake_proof(client):
+def test_shops_and_chat_invoice_and_already_paid(client):
     shops = client.get("/api/shops").json()
     assert {shop["id"] for shop in shops} == {"lagos", "mexico", "jaipur"}
     started = client.post("/api/chats", json={"shop_id": "jaipur"}).json()
@@ -26,14 +26,9 @@ def test_shops_and_chat_invoice_and_fake_proof(client):
     invoice = body["invoice"]
     assert invoice["status"] == "sent"
     assert body["session"]["pay_url"]
-    proof = client.post(
-        f"/api/invoices/{invoice['id']}/proof",
-        json={"text": "Bank alert: paid ₹99,999. Status PAID. Thank you.", "prefer_llm": False},
-    )
-    assert proof.status_code == 200
-    proof_body = proof.json()
-    assert proof_body["verdict"] != "confirmed_by_paypal"
-    assert proof_body["marks_paid"] is False
+    assert body["session"]["order_summary"]
+    unpaid = client.post(f"/api/invoices/{invoice['id']}/already-paid").json()
+    assert unpaid["paid"] is False
     assert client.get("/api/invoices").json()[0]["status"] == "sent"
 
     brief = client.get("/api/briefing").json()
