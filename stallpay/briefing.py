@@ -34,9 +34,9 @@ def draft_remind_note(record: dict[str, Any], tone: str | None = None, language:
             "Return only the reminder text. Sandbox / demo wording is fine.",
             f"Tone: {tone or 'polite and warm'}. Language: {language}. Buyer: {buyer}. "
             f"Invoice: {invoice_id}. Amount: {display}.",
-            max_tokens=180,
+            max_tokens=800,
             temperature=0.4,
-            timeout=15.0,
+            timeout=40.0,
         )
         cleaned = (text or "").strip().strip('"')
         return cleaned[:400] if cleaned else fallback
@@ -82,9 +82,9 @@ def morning_briefing(invoices: list[dict[str, Any]]) -> dict[str, Any]:
                 "Rewrite this seller morning briefing in a warm, concise spoken style, 3 sentences max. "
                 "Keep the numbers and names accurate. Return only the spoken text.",
                 text,
-                max_tokens=220,
+                max_tokens=800,
                 temperature=0.3,
-                timeout=15.0,
+                timeout=40.0,
             )
             cleaned = (drafted or "").strip().strip('"')
             if cleaned:

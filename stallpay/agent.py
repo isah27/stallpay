@@ -519,7 +519,7 @@ def _llm_reply(session: ChatSession) -> str | None:
     )
     history = session.transcript()
     try:
-        text = complete(system, history, max_tokens=400, temperature=0.4, timeout=20.0)
+        text = complete(system, history, max_tokens=1000, temperature=0.4, timeout=40.0)
     except (LlmError, Exception):
         return None
     cleaned = (text or "").strip().strip('"')

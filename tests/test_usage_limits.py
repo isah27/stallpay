@@ -195,3 +195,23 @@ def test_api_sets_visitor_cookie_and_returns_usage_note(client, monkeypatch):
 def test_home_includes_usage_note_placeholder(client):
     html = client.get("/").text
     assert 'id="usage-note"' in html
+
+
+def test_complete_rejects_empty_content(monkeypatch):
+    from stallpay.llm_client import LlmError
+
+    _enable_model(monkeypatch)
+    limits.set_visitor("visitor-llllllllllll", "11.11.11.11")
+    _FakeClient.content = None
+    monkeypatch.setattr(httpx, "Client", _FakeClient)
+    try:
+        complete("sys", "hello", max_tokens=50)
+        assert False, "expected unusable response"
+    except LlmError:
+        pass
+    _FakeClient.content = "   "
+    try:
+        complete("sys", "hello", max_tokens=50)
+        assert False, "expected unusable response"
+    except LlmError:
+        pass

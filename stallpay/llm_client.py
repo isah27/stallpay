@@ -31,7 +31,7 @@ def complete(
     system: str,
     user: str,
     *,
-    max_tokens: int = 700,
+    max_tokens: int = 1000,
     temperature: float = 0.3,
     timeout: float = 45.0,
 ) -> str:
@@ -59,9 +59,12 @@ def complete(
         response.raise_for_status()
         data = response.json()
     try:
-        return str(data["choices"][0]["message"]["content"])
+        content = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise LlmError("Model response was unusable.") from exc
+    if content is None or not str(content).strip():
+        raise LlmError("Model response was unusable.")
+    return str(content)
 
 
 def complete_vision(
@@ -70,7 +73,7 @@ def complete_vision(
     image_b64: str,
     mime: str = "image/png",
     *,
-    max_tokens: int = 700,
+    max_tokens: int = 1000,
     timeout: float = 60.0,
 ) -> str:
     if not config.LLM_AVAILABLE:
@@ -108,6 +111,9 @@ def complete_vision(
         response.raise_for_status()
         data = response.json()
     try:
-        return str(data["choices"][0]["message"]["content"])
+        content = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise LlmError("Vision model response was unusable.") from exc
+    if content is None or not str(content).strip():
+        raise LlmError("Vision model response was unusable.")
+    return str(content)

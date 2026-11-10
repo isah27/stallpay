@@ -69,7 +69,7 @@ def propose_from_text(text: str, prefer_llm: bool = True) -> ProofProposal:
             from . import config
 
             if config.LLM_AVAILABLE:
-                raw = complete(PROPOSE_PROMPT, text, max_tokens=400, temperature=0, timeout=20.0)
+                raw = complete(PROPOSE_PROMPT, text, max_tokens=800, temperature=0, timeout=40.0)
                 parsed = _parse_json(raw)
                 if parsed:
                     proposal = _proposal_from_dict(parsed, text, source="llm")

@@ -77,7 +77,7 @@ class LlmExtractor:
             return order
 
     def _complete(self, text: str) -> str:
-        return complete(SYSTEM_PROMPT, text, max_tokens=800, temperature=0, timeout=45.0)
+        return complete(SYSTEM_PROMPT, text, max_tokens=1000, temperature=0, timeout=45.0)
 
 
 def make_extractor(prefer_llm: bool = True):
