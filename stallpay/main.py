@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import config, db, webhooks
+from . import config, db, limits, webhooks
 from .agent import get_session, handle_buyer_message, start_session
 from .eval_scripts import evaluate_all
 from .models import ProposedOrder
@@ -43,6 +43,18 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="StallPay", version="0.2.0", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
+
+
+@app.middleware("http")
+async def usage_visitor_middleware(request: Request, call_next):
+    limits.clear_notice()
+    cookie, _ip, is_new = limits.bind_request(request)
+    try:
+        response = await call_next(request)
+        limits.attach_cookie(response, cookie, is_new)
+        return response
+    finally:
+        limits.clear_visitor()
 
 
 def _client():

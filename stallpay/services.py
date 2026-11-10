@@ -12,6 +12,7 @@ from .extractors import HeuristicExtractor, make_extractor
 from .models import ProposedOrder
 from .money import format_money
 from .paypal.live import PaypalApiError
+from .limits import attach_usage_note
 from .proof import check_proof, get_invoice_safe, propose_from_image, propose_from_text
 from .samples import SAMPLES, get_sample
 from .webhooks import _public, map_paypal_status, refresh_from_paypal
@@ -29,12 +30,12 @@ def preview_text(text: str, prefer_llm: bool = True, currency: str | None = None
     if currency:
         order.currency = currency.upper()
     check = check_order(order)
-    return {
+    return attach_usage_note({
         "order": order.to_dict(),
         "check": check.to_dict(),
         "extractor": extractor.name if prefer_llm and config.LLM_AVAILABLE else order.source,
         "blocked": not check.ok,
-    }
+    })
 
 
 def preview_order(order: ProposedOrder) -> dict[str, Any]:
@@ -193,7 +194,7 @@ def evaluate_proof_for_invoice(
     result["invoice"] = _public(record)
     # The image itself never flips the board to Paid.
     result["marks_paid"] = False
-    return result
+    return attach_usage_note(result)
 
 
 def seller_briefing() -> dict[str, Any]:

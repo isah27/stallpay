@@ -31,6 +31,19 @@ let session = null;
 let activeInvoiceId = null;
 let briefingSpeech = '';
 
+function showUsageNote(note) {
+  const el = document.getElementById('usage-note');
+  if (!el) return;
+  if (note) {
+    el.textContent = note;
+    el.classList.remove('hidden');
+  } else {
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
+}
+
+
 function bindSampleButtons() {
   document.querySelectorAll('.sample').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -295,6 +308,7 @@ async function startShop(shopId) {
     return;
   }
   session = data;
+  showUsageNote('');
   buyerInput.disabled = false;
   sendChatBtn.disabled = false;
   invoiceBtn.disabled = true;
@@ -326,6 +340,7 @@ chatForm.addEventListener('submit', async (event) => {
       dealStatus.textContent = data.detail || 'The message could not be sent.';
       return;
     }
+    showUsageNote(data.usage_note);
     renderThread(data.session.messages);
     renderOffer(data.session);
   } finally {
@@ -387,12 +402,15 @@ proofBtn.addEventListener('click', async () => {
       return;
     }
     const reasons = (data.reasons || []).map((r) => '<li>' + escapeHtml(r) + '</li>').join('');
+    const usage = data.usage_note
+      ? '<p class="hint usage-note">' + escapeHtml(data.usage_note) + '</p>'
+      : '';
     proofResult.innerHTML =
       '<div class="verdict ' + escapeHtml(data.verdict) + '"><strong>' + escapeHtml(data.summary) + '</strong>' +
       '<p>PayPal status: ' + escapeHtml(data.paypal_status || 'unknown') +
       (data.paypal_amount_usd ? ' · $' + escapeHtml(data.paypal_amount_usd) : '') +
       '</p><ul>' + reasons + '</ul>' +
-      '<p class="hint">This result does not mark the board paid by itself.</p></div>';
+      '<p class="hint">This result does not mark the board paid by itself.</p>' + usage + '</div>';
   } finally {
     proofBtn.disabled = false;
   }
@@ -404,6 +422,7 @@ briefBtn.addEventListener('click', async () => {
   briefingSpeech = (data.speech && data.speech.text) || data.text || '';
   briefText.textContent = briefingSpeech;
   speakBtn.disabled = !briefingSpeech;
+  if (data.usage_note) showUsageNote(data.usage_note);
 });
 
 speakBtn.addEventListener('click', () => {

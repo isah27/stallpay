@@ -10,6 +10,7 @@ from typing import Any
 
 from . import config
 from .checker import check_order
+from .limits import attach_usage_note
 from .llm_client import LlmError, complete
 from .models import LineItem, ProposedOrder
 from .money import format_money, money, parse_amount, parse_amounts
@@ -207,11 +208,11 @@ def handle_buyer_message(session: ChatSession, text: str, prefer_llm: bool = Tru
         reply = _scripted_reply(session, text, buyer_offer, agreement)
 
     session.messages.append(ChatTurn("seller", reply))
-    return {
+    return attach_usage_note({
         "reply": reply,
         "session": session.to_public(),
         "invoice_ready": bool(session.agreement_quote) and not session.closed,
-    }
+    })
 
 
 def maybe_build_order(session: ChatSession) -> ProposedOrder | None:

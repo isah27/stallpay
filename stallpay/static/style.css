@@ -165,6 +165,7 @@ a { color: var(--green-dark); }
 .chat-form { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
 .chat-form input { flex: 1; }
 .deal-status, .brief-text { margin-top: 0.7rem; font-size: 0.95rem; }
+.usage-note { margin-top: 0.4rem; }
 .proof-panel { margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--line); }
 .proof-panel textarea { width: 100%; }
 .verdict { border-radius: 12px; padding: 0.8rem; margin-top: 0.6rem; }

@@ -5,9 +5,8 @@ import json
 import re
 from typing import Any
 
-import httpx
-
 from .. import config
+from ..llm_client import complete
 from ..models import ProposedOrder
 from .heuristic import HeuristicExtractor
 
@@ -78,26 +77,7 @@ class LlmExtractor:
             return order
 
     def _complete(self, text: str) -> str:
-        scheme = (config.LLM_AUTH_SCHEME or "Api-Key").strip()
-        headers = {
-            "Authorization": f"{scheme} {config.LLM_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        body = {
-            "model": config.LLM_MODEL,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": text},
-            ],
-            "temperature": 0,
-            "max_tokens": 800,
-        }
-        url = f"{config.LLM_BASE_URL}/chat/completions"
-        with httpx.Client(timeout=45.0) as client:
-            response = client.post(url, headers=headers, json=body)
-            response.raise_for_status()
-            data = response.json()
-        return data["choices"][0]["message"]["content"]
+        return complete(SYSTEM_PROMPT, text, max_tokens=800, temperature=0, timeout=45.0)
 
 
 def make_extractor(prefer_llm: bool = True):

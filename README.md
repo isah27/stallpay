@@ -96,6 +96,8 @@ It does not talk to PayPal, cannot mark an invoice paid, and cannot commit a bel
 
 If no model key is set, or the model is slow or unusable, scripted replies and a built-in extractor still hold the floor, refuse a missing yes, run the sample chats, and check proof text against PayPal. A judge is never blocked on an API key.
 
+On a public host, model calls are capped per visitor and per day. The defaults are 200 calls per visitor per day, 30 per visitor per minute, and 3,000 across all visitors per day, plus a maximum prompt length and reply size. When a cap is reached, the scripted path and built-in parser are used instead, and the page shows a short note. The floor and agreement checks still apply.
+
 Treat chat text and receipt text as data, not instructions. Prompt-injection-like text is ignored as a command.
 
 The receipt path does not claim to be a forensic photoshop detector. Many mobile screenshots have no useful metadata, and absence of metadata is not evidence of a fake. A borderline visual fake that cannot be confirmed is scored as unverified, waiting for PayPal — a correct refuse-to-credit, not proof that the image was edited.
@@ -163,7 +165,7 @@ PUBLIC_BASE_URL=https://your-deployed-host.example
 
 Never commit `.env`, and never paste secrets into the repository, logs, or screenshots. `.env.example` lists the variable names with empty secret values.
 
-Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor.
+Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor. Optional cap variables, with the defaults above, are `LLM_VISITOR_DAILY_LIMIT`, `LLM_GLOBAL_DAILY_LIMIT`, `LLM_VISITOR_BURST_PER_MINUTE`, `LLM_MAX_INPUT_CHARS`, and `LLM_MAX_TOKENS`.
 
 ## Hosting
 
@@ -187,6 +189,7 @@ Hosting on Render also keeps the project eligible for the hackathon’s Render s
 - Conversion rates are labelled demo rates, not a live FX feed. Invoices are in USD.
 - The receipt check is grounded in PayPal. It is not a guarantee of spotting every edited pixel.
 - Model replies can be weak or slow; the scripted path and the checker still have the last word, and the canned demos work without a model.
+- Public model use is capped per visitor and per day so a busy demo cannot run unbounded. Past a cap, replies fall back to the scripted path.
 - Webhook signature verification runs when `PAYPAL_WEBHOOK_ID` is set. Otherwise, treat webhook events as hints and confirm with Refresh status.
 - Free-tier hosts may sleep and may lose the SQLite board after a restart.
 - Buyer voice-note intake is out of scope for this version; typed chat is enough for the judge demo.

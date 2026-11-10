@@ -20,6 +20,14 @@ def _has_secret(name: str) -> bool:
     return bool(env(name).strip())
 
 
+def _int_env(name: str, default: int) -> int:
+    raw = env(name, str(default)).strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 ROOT.mkdir(parents=True, exist_ok=True)
 
 PAYPAL_MODE = env("PAYPAL_MODE", "mock").strip().lower() or "mock"
@@ -44,6 +52,13 @@ LLM_AUTH_SCHEME = env("LLM_AUTH_SCHEME", "Api-Key")
 VISION_MODEL = env("VISION_MODEL", "").strip()
 FORCE_HEURISTIC = env("STALLPAY_FORCE_HEURISTIC", "").strip() in {"1", "true", "yes"}
 LLM_AVAILABLE = bool(LLM_API_KEY.strip()) and not FORCE_HEURISTIC
+
+# Public-host caps. Generous defaults so judges can test freely.
+LLM_VISITOR_DAILY_LIMIT = _int_env("LLM_VISITOR_DAILY_LIMIT", 200)
+LLM_GLOBAL_DAILY_LIMIT = _int_env("LLM_GLOBAL_DAILY_LIMIT", 3000)
+LLM_VISITOR_BURST_PER_MINUTE = _int_env("LLM_VISITOR_BURST_PER_MINUTE", 30)
+LLM_MAX_INPUT_CHARS = _int_env("LLM_MAX_INPUT_CHARS", 12000)
+LLM_MAX_TOKENS = _int_env("LLM_MAX_TOKENS", 400)
 
 NGN_PER_USD = Decimal(env("NGN_PER_USD", "1480.00"))
 MXN_PER_USD = Decimal(env("MXN_PER_USD", "18.20"))

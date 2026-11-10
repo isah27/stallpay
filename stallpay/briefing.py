@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from . import config
+from .limits import attach_usage_note
 from .llm_client import LlmError, complete
 from .money import format_money, format_usd, parse_amount
 from .shops import get_shop
@@ -90,7 +91,7 @@ def morning_briefing(invoices: list[dict[str, Any]]) -> dict[str, Any]:
                 text = cleaned[:800]
         except (LlmError, Exception):
             pass
-    return {
+    return attach_usage_note({
         "text": text,
         "paid_count": len(paid),
         "unpaid_count": len(unpaid),
@@ -103,7 +104,7 @@ def morning_briefing(invoices: list[dict[str, Any]]) -> dict[str, Any]:
             "engine": "browser-speech-synthesis",
             "fallback": text,
         },
-    }
+    })
 
 
 def _language_from_record(record: dict[str, Any]) -> str:

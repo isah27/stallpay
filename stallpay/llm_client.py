@@ -6,10 +6,25 @@ from typing import Any
 import httpx
 
 from . import config
+from .limits import LlmCapped, consume
 
 
 class LlmError(RuntimeError):
     pass
+
+
+def _clamped_max_tokens(requested: int) -> int:
+    ceiling = max(1, int(config.LLM_MAX_TOKENS))
+    return max(1, min(int(requested), ceiling))
+
+
+def _input_chars(*parts: str) -> int:
+    return sum(len(part or "") for part in parts)
+
+
+def _reserve(input_chars: int) -> None:
+    if not consume(input_chars):
+        raise LlmCapped("Model usage cap reached.")
 
 
 def complete(
@@ -22,6 +37,8 @@ def complete(
 ) -> str:
     if not config.LLM_AVAILABLE:
         raise LlmError("No model is configured.")
+    _reserve(_input_chars(system, user))
+    max_tokens = _clamped_max_tokens(max_tokens)
     scheme = (config.LLM_AUTH_SCHEME or "Api-Key").strip()
     headers = {
         "Authorization": f"{scheme} {config.LLM_API_KEY}",
@@ -58,6 +75,9 @@ def complete_vision(
 ) -> str:
     if not config.LLM_AVAILABLE:
         raise LlmError("No model is configured.")
+    # Count only the text prompt. Image bytes are already size-limited at upload.
+    _reserve(_input_chars(system, user))
+    max_tokens = _clamped_max_tokens(max_tokens)
     model = config.VISION_MODEL or config.LLM_MODEL
     scheme = (config.LLM_AUTH_SCHEME or "Api-Key").strip()
     headers = {
