@@ -63,6 +63,7 @@ def create_and_send(
     client,
     *,
     floor_total=None,
+    required_total=None,
     require_agreement: bool = False,
     buyer_messages: list[str] | None = None,
     seller_messages: list[str] | None = None,
@@ -71,6 +72,7 @@ def create_and_send(
     check = check_order(
         order,
         floor_total=floor_total,
+        required_total=required_total,
         require_agreement=require_agreement,
         buyer_messages=buyer_messages,
         seller_messages=seller_messages,
@@ -117,7 +119,7 @@ def create_from_session(session: ChatSession, client) -> dict[str, Any]:
     result = create_and_send(
         close["order"],
         client,
-        floor_total=session.floor_total(),
+        required_total=session.selling_total(),
         require_agreement=True,
         buyer_messages=session.buyer_messages(),
         seller_messages=session.seller_messages(),
@@ -127,6 +129,8 @@ def create_from_session(session: ChatSession, client) -> dict[str, Any]:
         session.closed = True
         session.invoice_pk = result["invoice"]["id"]
         session.paypal_invoice_id = result["invoice"]["paypal_invoice_id"]
+        session.pay_url = result["invoice"].get("pay_url")
+        session.invoice_status = result["invoice"].get("status")
         result["session"] = session.to_public()
     else:
         result["session"] = session.to_public()

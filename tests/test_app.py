@@ -13,13 +13,21 @@ def test_home_and_metrics_pages(client):
     home = client.get("/")
     assert home.status_code == 200
     assert "StallPay" in home.text
-    assert "Tailor in Surulere" in home.text
+    assert "Joyería Sofía" in home.text or "Joyer" in home.text
+    assert "Seller tools" in home.text
+    assert "Tailor in Surulere" not in home.text
+    seller = client.get("/seller")
+    assert seller.status_code == 200
+    assert "Tailor in Surulere" in seller.text
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert "5" in metrics.text
     data = client.get("/metrics?format=json").json()
     assert data["success_extracted_and_checked"] == 5
     assert data["failure_blocked_by_checker"] == 3
+    assert data["price_integrity"]["held"] == data["price_integrity"]["total"]
+    assert data["promo_expiry"]["held"] == data["promo_expiry"]["total"]
+    assert data["agreement_gate"]["false_invoice_count"] == 0
 
 
 def test_preview_sample_and_create_invoice_end_to_end(client):

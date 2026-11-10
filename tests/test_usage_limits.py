@@ -22,7 +22,7 @@ class _FakeResponse:
 
 class _FakeClient:
     calls: list[dict] = []
-    content = "Claro, te lo dejo en MX$850 y no bajo de ahi."
+    content = "Normalmente son MX$850, pero con la promo quedan en MX$760. La promo termina el jueves."
 
     def __init__(self, timeout=None):
         self.timeout = timeout
@@ -128,7 +128,7 @@ def test_complete_vision_ignores_image_size_for_input_cap(monkeypatch):
     assert len(_FakeClient.calls) == 1
 
 
-def test_haggle_falls_back_to_scripted_reply_when_capped_and_holds_floor(monkeypatch):
+def test_chat_falls_back_to_scripted_reply_when_capped_and_holds_price(monkeypatch):
     _enable_model(monkeypatch, visitor_daily=0)
     limits.set_visitor("visitor-iiiiiiiiiiii", "8.8.8.8")
     monkeypatch.setattr(httpx, "Client", _FakeClient)
@@ -136,15 +136,14 @@ def test_haggle_falls_back_to_scripted_reply_when_capped_and_holds_floor(monkeyp
     result = handle_buyer_message(session, "Quiero los aretes de aro de plata.", prefer_llm=True)
     assert result["usage_note"] == USAGE_NOTE
     assert _FakeClient.calls == []
-    assert session.current_offer is None or session.current_offer >= session.floor_total()
+    assert session.quoted_price == session.selling_total()
     low = handle_buyer_message(session, "Te doy 300 pesos.", prefer_llm=True)
     assert low["usage_note"] == USAGE_NOTE
-    assert session.current_offer >= session.floor_total()
-    assert session.current_offer >= 720
-    assert "300" in low["reply"] or "piso" in low["reply"].lower() or "floor" in low["reply"].lower() or "mínimo" in low["reply"] or "minimo" in low["reply"]
+    assert session.quoted_price == session.selling_total()
+    assert "760" in low["reply"] or "promo" in low["reply"].lower() or "mejor" in low["reply"].lower()
 
 
-def test_haggle_uses_model_reply_when_under_cap(monkeypatch):
+def test_chat_uses_model_reply_when_under_cap(monkeypatch):
     _enable_model(monkeypatch)
     limits.set_visitor("visitor-jjjjjjjjjjjj", "9.9.9.9")
     monkeypatch.setattr(httpx, "Client", _FakeClient)
@@ -187,8 +186,7 @@ def test_api_sets_visitor_cookie_and_returns_usage_note(client, monkeypatch):
     body = second.json()
     assert body["usage_note"] == USAGE_NOTE
     assert body["reply"] != _FakeClient.content
-    assert second.json()["session"]["current_offer"] is not None
-    assert float(second.json()["session"]["current_offer"]) >= 720
+    assert second.json()["session"]["quoted_price"] == "760.00"
     assert len(_FakeClient.calls) == 1
 
 

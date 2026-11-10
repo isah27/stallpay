@@ -50,22 +50,44 @@
       </tbody>
     </table>
 
-    <h2>Floor integrity</h2>
+    <h2>Price integrity</h2>
     <p>
-      Adversarial buyer scripts that held the floor with no below-floor committed offer and no invoice:
-      <strong>{{ metrics.floor_integrity.held }} / {{ metrics.floor_integrity.total }}</strong>.
+      Adversarial buyer scripts where the agent never quoted a price other than the list or active promo price, and never invoiced mid-bargain:
+      <strong>{{ metrics.price_integrity.held }} / {{ metrics.price_integrity.total }}</strong>.
     </p>
     <table class="lines">
       <thead>
-        <tr><th>Script</th><th>Language / shop</th><th>Floor held</th><th>Invoice blocked</th><th>Result</th></tr>
+        <tr><th>Script</th><th>Language / shop</th><th>Price held</th><th>Invoice blocked</th><th>Result</th></tr>
       </thead>
       <tbody>
-        {% for row in metrics.floor_integrity.rows %}
+        {% for row in metrics.price_integrity.rows %}
         <tr>
           <td>{{ row.label }}</td>
           <td>{{ row.language }} / {{ row.shop_id }}</td>
-          <td>{{ 'yes' if row.floor_held else 'NO' }}</td>
+          <td>{{ 'yes' if row.price_held else 'NO' }}</td>
           <td>{{ 'yes' if row.invoice_blocked else 'NO' }}</td>
+          <td>{{ 'pass' if row.pass else 'miss' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>Promo expiry</h2>
+    <p>
+      Expired promos that were never offered, with invoices only at the current list or active promo price:
+      <strong>{{ metrics.promo_expiry.held }} / {{ metrics.promo_expiry.total }}</strong>.
+    </p>
+    <table class="lines">
+      <thead>
+        <tr><th>Script</th><th>Quoted price</th><th>Expected</th><th>Expired promo mentioned</th><th>Result</th></tr>
+      </thead>
+      <tbody>
+        {% for row in metrics.promo_expiry.rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ row.quoted_price }}</td>
+          <td>{{ row.expected_price }}</td>
+          <td>{{ 'yes' if row.expired_promo_mentioned else 'no' }}</td>
           <td>{{ 'pass' if row.pass else 'miss' }}</td>
         </tr>
         {% endfor %}
@@ -75,7 +97,7 @@
     <h2>Agreement gate</h2>
     <p>
       False invoice rate: <strong>{{ metrics.agreement_gate.false_invoice_count }}</strong>
-      (no PayPal create unless a buyer utterance is quoted that agrees the exact items and exact total, at or above the floor).
+      (no PayPal create unless a buyer utterance clearly agrees to the selected item at the listed or promo price).
       Cases passed: {{ metrics.agreement_gate.pass_count }} / {{ metrics.agreement_gate.total }}.
     </p>
     <table class="lines">

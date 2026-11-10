@@ -22,6 +22,7 @@ def check_order(
     rate: Decimal | None = None,
     rate_as_of: str | None = None,
     floor_total: Decimal | None = None,
+    required_total: Decimal | None = None,
     require_agreement: bool = False,
     buyer_messages: list[str] | None = None,
     seller_messages: list[str] | None = None,
@@ -106,14 +107,23 @@ def check_order(
                 f"within the {slack} {currency} tolerance."
             )
 
+    catalog_total = required_total if required_total is not None else floor_total
     floor_held = True
-    if floor_total is not None:
+    if catalog_total is not None:
         agreed = order.stated_total_ngn if order.stated_total_ngn is not None else computed
-        if agreed < money(floor_total):
+        expected = money(catalog_total)
+        if required_total is not None:
+            if abs(agreed - expected) > slack:
+                floor_held = False
+                errors.append(
+                    f"Agreed price {money(agreed)} {currency} does not match the listed or "
+                    f"promo price of {expected} {currency}. No invoice will be created."
+                )
+        elif agreed < expected:
             floor_held = False
             errors.append(
                 f"Agreed price {money(agreed)} {currency} is below the seller's floor of "
-                f"{money(floor_total)} {currency}. No invoice will be created."
+                f"{expected} {currency}. No invoice will be created."
             )
 
     if require_agreement:
@@ -170,10 +180,14 @@ def _check_agreement(
         pass
     quoted_total = _quoted_amount_matching(quote, order.stated_total_ngn, computed)
     if quoted_total is None:
-        errors.append(
-            "The quoted buyer message does not agree to the exact price of this order."
-        )
-        return
+        # A clear yes with no amount still counts when a single catalog price
+        # is already on the order and the quote came from the buyer.
+        if parse_amounts_in_quote(quote):
+            errors.append(
+                "The quoted buyer message does not agree to the exact price of this order."
+            )
+            return
+        quoted_total = money(order.stated_total_ngn if order.stated_total_ngn is not None else computed)
     if order.stated_total_ngn is not None and abs(quoted_total - money(order.stated_total_ngn)) > tolerance_for(order.currency):
         errors.append("The buyer agreed to a different price than the stated order total.")
         return
@@ -238,3 +252,10 @@ def _quote_covers_items(quote: str, order: ProposedOrder) -> bool:
         return False
     # A price-only yes is accepted only for a single item already on the table.
     return len(order.items) == 1
+
+
+def parse_amounts_in_quote(quote: str) -> list:
+    from .money import parse_amounts
+
+    amounts = parse_amounts(quote)
+    return [amount for amount in amounts if amount > 20]

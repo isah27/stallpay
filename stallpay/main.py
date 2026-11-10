@@ -40,7 +40,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="StallPay", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="StallPay", version="0.3.0", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
@@ -118,6 +118,11 @@ def home(request: Request):
     return templates.TemplateResponse(request, "index.html", _page_context(request))
 
 
+@app.get("/seller", response_class=HTMLResponse)
+def seller(request: Request):
+    return templates.TemplateResponse(request, "seller.html", _page_context(request))
+
+
 @app.get("/api/samples")
 def api_samples():
     return [public_sample(s) for s in SAMPLES]
@@ -160,16 +165,33 @@ async def api_chat_message(session_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Unknown chat session")
     body = await request.json()
     text = str(body.get("text") or "").strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Type a buyer message.")
+    item_id = str(body.get("item_id") or "").strip() or None
+    if not text and not item_id:
+        raise HTTPException(status_code=400, detail="Type a buyer message or pick an item.")
     if body.get("buyer_name"):
         session.buyer_name = str(body["buyer_name"]).strip()
     if body.get("buyer_email"):
         session.buyer_email = str(body["buyer_email"]).strip()
     try:
-        result = handle_buyer_message(session, text, prefer_llm=bool(body.get("prefer_llm", True)))
+        result = handle_buyer_message(
+            session,
+            text,
+            prefer_llm=bool(body.get("prefer_llm", True)),
+            item_id=item_id,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    if result.get("invoice_ready"):
+        created = create_from_session(session, _client())
+        result["invoice"] = created.get("invoice")
+        result["session"] = created.get("session") or session.to_public()
+        result["blocked"] = created.get("blocked")
+        result["reason"] = created.get("reason") or created.get("error")
+        if created.get("ok"):
+            result["invoiced"] = True
+            result["invoice_ready"] = False
+        else:
+            result["invoiced"] = False
     return result
 
 

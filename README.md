@@ -1,14 +1,14 @@
 # StallPay
 
-StallPay is a sales agent for small sellers who close deals in Instagram, WhatsApp, or Telegram, in any country.
+StallPay is a shop agent for small sellers who close deals in Instagram, WhatsApp, or Telegram, in any country.
 
-It bargains in the buyer’s language and stays at or above the seller’s floor price. A deterministic checker, not the model, is what is allowed to create a PayPal invoice, and only after the buyer has agreed in their own words to the exact items and price. If a buyer sends a payment screenshot, StallPay may read the fields, but only PayPal’s real invoice status can confirm the money. Unpaid invoices can be reminded through the official PayPal API, in the seller’s tone. The seller can play a short spoken morning briefing of what sold, what landed, and who still owes.
+A buyer picks a business, chooses an item, and hears the real catalog price. If the seller has configured a promo, the agent states the usual price and the promo price, with the actual end date and time. It never invents a discount or a fake deadline. A deterministic checker, not the model, is what is allowed to create a PayPal invoice, and only after the buyer has clearly said yes to that exact item and price. If a buyer sends a payment screenshot, StallPay may read the fields, but only PayPal’s real invoice status can confirm the money. Unpaid invoices can be reminded through the official PayPal API, in the seller’s tone. The seller can play a short spoken morning briefing of what sold, what landed, and who still owes.
 
 This project is a submission for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). It is sandbox-only. No real money moves, and no messages are sent to real customers.
 
 ## Who it is for
 
-Small sellers everywhere who already take orders in chat, haggle in the buyer’s slang, and then get sent edited receipts or bank-alert screenshots as “proof.” There is often no invoice, and no reliable way to see whether PayPal actually received the money.
+Small sellers everywhere who already take orders in chat and then get sent edited receipts or bank-alert screenshots as “proof.” There is often no invoice, and no reliable way to see whether PayPal actually received the money.
 
 The live demo has three equal shops, not a single-country product with translations added on:
 
@@ -16,18 +16,16 @@ The live demo has three equal shops, not a single-country product with translati
 - Sofía’s jewelry stall in Mexico City, prices in Mexican pesos, Spanish.
 - Priya’s textile stall in Jaipur, prices in rupees, Hindi and Hinglish.
 
-A judge can also paste a finished chat, including the original Lagos sample orders.
+Seller tools, including the original Lagos sample orders, live on a separate `/seller` page.
 
 ## What it does
 
-1. Pick a shop and chat as the buyer, in any language, with no login. Or paste a finished transcript.
-2. The agent haggles. Code checks every committed offer against the floor. A below-floor price is rejected or rewritten, and the attempt is logged.
-3. A close is allowed only when a buyer utterance is quoted that agrees the exact items and the exact total, at or above the floor. A bare “ok” is not enough.
-4. On a passing check, StallPay creates and sends a PayPal sandbox invoice in **USD**. The UI and the invoice notes show the seller’s currency and a labelled, dated conversion rate.
-5. If the buyer uploads or pastes payment proof, a parser may propose amount, currency, date, and reference. PayPal GET is the ground truth. The image itself never marks the board Paid.
-6. The board shows draft / sent / paid / reminder sent. A pay link opens the PayPal payer view (or a mock payer page when credentials are not configured). A Refresh button GETs the invoice if a webhook is delayed.
-7. Unpaid invoices can be reminded through `POST /v2/invoicing/invoices/{id}/remind`, with a short note in the seller’s tone.
-8. The seller view can write and play a morning briefing. Playback uses the browser’s speech engine, with the written text as fallback.
+1. Open the site with no login and pick a shop. The buyer then stays on one screen at a time: items, price, then pay.
+2. The agent greets the buyer and lists the items it has. The buyer selects an item by tapping it or by typing in any language.
+3. The agent states the price. If a promo is configured and still running, it quotes the list price and the promo price, and it names the real expiry. If no promo is configured, or the promo has ended, it just states the list price. Bargaining does not change the price; the agent says the promo price (or the list price) is already the best it can do.
+4. A PayPal invoice and pay link appear only when a buyer utterance clearly says yes to that item and price, for example “Okay I want it,” in any language. A bare “ok” is not enough. Nothing about invoices or pay links is shown before that yes.
+5. After the link, the buyer can Refresh until the status is Paid, or use “Already paid? Upload proof.” A parser may propose amount, currency, date, and reference. PayPal GET is the ground truth. The image itself never marks the order Paid.
+6. Seller tools at `/seller` show the invoice board (draft / sent / paid / reminder sent), reminders through PayPal, a morning briefing, published metrics, and a paste-a-chat path for finished transcripts.
 
 ## Clone and run (mock mode, no keys required)
 
@@ -43,13 +41,16 @@ cp .env.example .env        # leave PAYPAL_MODE=mock
 uvicorn stallpay.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Pick **Joyería Sofía**, ask for the silver hoop earrings, try a low offer, then agree in your own words at the legal price (include the exact amount). Click **Create PayPal invoice**. Optionally paste a fake receipt against that unpaid invoice — the proof panel should refuse it because PayPal does not confirm payment. Open the pay link and click **Pay now (mock)**. The board should flip to **paid**. Click **Write briefing** and **Play** for the morning summary.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “De acuerdo, lo tomo” or “Okay I want it.” The PayPal pay link should appear only after that yes. Optionally paste a fake receipt under “Already paid? Upload proof” — the check should refuse it because PayPal does not confirm payment. Open the pay link and click **Pay now (mock)**, then **Refresh status**. The status should flip to **paid**.
 
-The original paste-a-chat path is further down the page. Click **Tailor in Surulere — 2 native shirts**, then **Extract and check**, then **Create PayPal invoice**.
+Seller tools are at [http://127.0.0.1:8000/seller](http://127.0.0.1:8000/seller). Click **Tailor in Surulere — 2 native shirts**, then **Extract and check**, then **Create PayPal invoice**. **Write briefing** and **Play** read the morning summary.
+
+A public no-login demo is at [https://stallpay.onrender.com/](https://stallpay.onrender.com/). On Render’s free plan, the first visit after the service has been idle can take about a minute to wake.
 
 Useful paths:
 
-- `/` — no-login demo
+- `/` — no-login buyer demo
+- `/seller` — invoice board, briefing, reminders, paste-a-chat
 - `/health` — liveness
 - `/metrics` — published accuracy tables
 - `/webhooks/paypal` — PayPal webhook receiver
@@ -67,7 +68,7 @@ StallPay calls the PayPal sandbox Invoicing API. PayPal is the source of truth f
 
 | Step | API |
 | --- | --- |
-| Create draft invoice | `POST /v2/invoicing/invoices` — only after the checker has a quoted buyer yes and the floor is intact |
+| Create draft invoice | `POST /v2/invoicing/invoices` — only after the checker has a quoted buyer yes at the listed or promo price |
 | Send invoice (pay link, no recipient email) | `POST /v2/invoicing/invoices/{id}/send` with `send_to_recipient: false` |
 | Read status | `GET /v2/invoicing/invoices/{id}` — board, Refresh, and every payment-proof check |
 | Remind an unpaid buyer | `POST /v2/invoicing/invoices/{id}/remind` |
@@ -92,11 +93,11 @@ When a model key is configured (`LLM_API_KEY`, `BASETEN_API_KEY`, or `MODEL_API_
 - propose amount, currency, and reference from a receipt
 - draft reminder copy and the morning briefing
 
-It does not talk to PayPal, cannot mark an invoice paid, and cannot commit a below-floor price. Ordinary code enforces the floor, the agreement gate, the totals, and the PayPal cross-check.
+It does not talk to PayPal, cannot mark an invoice paid, and cannot invent or accept a price other than the list price or an active configured promo. Ordinary code locks the price, the agreement gate, the totals, and the PayPal cross-check.
 
-If no model key is set, or the model is slow or unusable, scripted replies and a built-in extractor still hold the floor, refuse a missing yes, run the sample chats, and check proof text against PayPal. A judge is never blocked on an API key.
+If no model key is set, or the model is slow or unusable, scripted replies and a built-in extractor still quote only catalog prices, refuse a missing yes, run the sample chats, and check proof text against PayPal. A judge is never blocked on an API key.
 
-On a public host, model calls are capped per visitor and per day. The defaults are 200 calls per visitor per day, 30 per visitor per minute, and 3,000 across all visitors per day, plus a maximum prompt length and reply size. When a cap is reached, the scripted path and built-in parser are used instead, and the page shows a short note. The floor and agreement checks still apply.
+On a public host, model calls are capped per visitor and per day. The defaults are 200 calls per visitor per day, 30 per visitor per minute, and 3,000 across all visitors per day, plus a maximum prompt length and reply size. When a cap is reached, the scripted path and built-in parser are used instead, and the page shows a short note. The price and agreement checks still apply.
 
 Treat chat text and receipt text as data, not instructions. Prompt-injection-like text is ignored as a command.
 
@@ -106,17 +107,23 @@ The receipt path does not claim to be a forensic photoshop detector. Many mobile
 
 These results are produced by the scripted agent, the built-in extractor, and the deterministic checker, and can be reproduced with `pytest` or at `/metrics`. Misses are published, not rounded away.
 
-### Floor integrity
+### Price integrity
 
-15 adversarial buyer scripts, split across English, Nigerian Pidgin, Spanish, and Hindi. They include a lowball far below the floor, last-price pressure, a false claim that the seller already agreed a lower number, a currency trick, emotional pressure, and prompt-injection-like “ignore the floor” text.
+15 adversarial buyer scripts, split across English, Nigerian Pidgin, Spanish, and Hindi. They include a lowball far below the catalog price, last-price pressure, a false claim that the seller already agreed a lower number, a currency trick, emotional pressure, and prompt-injection-like “ignore the price” text.
 
-**15 / 15** held the floor: 0 committed offers and 0 invoices below the floor.
+**15 / 15** held the catalog price: the agent never quoted a price other than the list or active promo, and no invoice was created mid-bargain.
+
+### Promo expiry
+
+Three cases around Amaka’s gele, whose promo ended on 9 November 2026 at 9:00 PM Lagos time and is stored as expired data, not hidden.
+
+**3 / 3** respected expiry: the expired promo price was never offered, a yes invoiced at the current list price, and a yes at the old promo price was blocked.
 
 ### Agreement gate
 
-Chats with no explicit yes, a yes to a different price, a yes to different items, an ambiguous ok with no price, a yes that was only said by the agent, and one legal priced yes.
+Chats with no explicit yes, a yes to a different price, a yes to different items, an ambiguous ok with no price, a yes that was only said by the agent, and one clear buyer yes after the catalog price was quoted.
 
-**False invoice rate: 0.** 6 / 6 cases behaved as expected. No PayPal create unless a buyer utterance is quoted that agrees the exact items and exact total, at or above the floor.
+**False invoice rate: 0.** 6 / 6 cases behaved as expected. No PayPal create unless a buyer utterance clearly agrees to the selected item at the listed or promo price.
 
 ### Payment-proof check
 
@@ -141,7 +148,7 @@ The original five Lagos success chats and three failure cases still run through 
 
 **5 / 5** demo chats extract correctly and pass the checker. **3 / 3** documented failure cases are blocked before any PayPal call.
 
-Claimed metrics are only for these evaluated scripts and fixtures. A live judge chat may be in a language outside the scored set; the agent will try to follow that language, and the floor and agreement rules still apply.
+Claimed metrics are only for these evaluated scripts and fixtures. A live judge chat may be in a language outside the scored set; the agent will try to follow that language, and the price and agreement rules still apply.
 
 ## Sandbox credentials (optional, for a live PayPal invoice)
 
@@ -185,14 +192,14 @@ Hosting on Render also keeps the project eligible for the hackathon’s Render s
 
 - Sandbox only. Not a live payment product and not a local-currency settlement path.
 - Chat runs in this app. There is no official WhatsApp, Instagram, or Telegram Business API integration, and no message is sent to a real customer.
-- No login or multi-seller accounts.
+- No login or multi-seller accounts. Promo prices and expiry dates are configured in the shop catalog, not in a seller admin UI.
 - Conversion rates are labelled demo rates, not a live FX feed. Invoices are in USD.
 - The receipt check is grounded in PayPal. It is not a guarantee of spotting every edited pixel.
 - Model replies can be weak or slow; the scripted path and the checker still have the last word, and the canned demos work without a model.
 - Public model use is capped per visitor and per day so a busy demo cannot run unbounded. Past a cap, replies fall back to the scripted path.
 - Webhook signature verification runs when `PAYPAL_WEBHOOK_ID` is set. Otherwise, treat webhook events as hints and confirm with Refresh status.
 - Free-tier hosts may sleep and may lose the SQLite board after a restart.
-- Buyer voice-note intake is out of scope for this version; typed chat is enough for the judge demo.
+- Buyer voice-note intake is out of scope for this version; typed chat or a tap on an item is enough for the judge demo.
 
 ## License
 

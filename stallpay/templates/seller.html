@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StallPay — seller tools</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow"><a href="/">← Back to the buyer shop</a></p>
+      <h1>Seller tools</h1>
+      <p class="tagline">Invoice board, reminders, the morning briefing, published metrics, and the original paste-a-chat path. Buyers do not see this page during a purchase.</p>
+    </div>
+    <div class="badges">
+      <span class="badge">Mode: {{ paypal_mode }}</span>
+      <span class="badge">{% if llm_configured %}Model drafts copy, the checker still decides{% else %}Scripted path (no model key needed){% endif %}</span>
+    </div>
+  </header>
+
+  <main class="board">
+    <section class="col" id="board-col">
+      <h2>Invoice board</h2>
+      <p class="hint">Statuses: draft, sent, paid, reminder sent, cancelled. Use Refresh if a webhook is delayed. A rejected proof does not change a sent invoice to paid.</p>
+      <div id="invoices">
+        {% if invoices %}
+          {% for inv in invoices %}
+          <article class="invoice" data-id="{{ inv.id }}">
+            <header>
+              <strong>{{ inv.buyer_name }}</strong>
+              <span class="status status-{{ inv.status }}">{{ inv.status }}</span>
+            </header>
+            <p>{{ inv.buyer_email }}</p>
+            <p class="mono">{{ inv.paypal_invoice_id }}</p>
+            {% if inv.pay_url %}<p><a href="{{ inv.pay_url }}" target="_blank" rel="noopener">Open pay link</a></p>{% endif %}
+            {% if inv.reminder_sent %}<p class="hint">Reminder sent</p>{% endif %}
+            <div class="actions">
+              <button type="button" class="refresh" data-id="{{ inv.id }}">Refresh status</button>
+              {% if inv.status not in ['paid', 'cancelled', 'refunded'] %}
+              <button type="button" class="remind" data-id="{{ inv.id }}">Send reminder</button>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        {% else %}
+          <div class="empty">No invoices yet.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="col" id="brief-panel">
+      <h2>Morning briefing</h2>
+      <p class="hint">A spoken summary of what closed, what landed, and who still owes. Uses the browser’s speech engine, with the written text as fallback.</p>
+      <div class="actions">
+        <button type="button" id="brief-btn">Write briefing</button>
+        <button type="button" id="speak-btn" disabled>Play</button>
+      </div>
+      <p id="brief-text" class="brief-text"></p>
+      <p class="hint usage-note hidden" id="usage-note"></p>
+    </section>
+  </main>
+
+  <section class="paste-wrap">
+    <h2>Paste a finished chat</h2>
+    <p class="hint">The original path still works: try a sample or paste your own. Use a sandbox or @example.com email, never a real customer.</p>
+    <div class="board">
+      <section class="col" id="paste-col">
+        <h3>The chat</h3>
+        <div class="samples" id="samples">
+          {% for sample in samples %}
+          <button type="button" class="sample" data-id="{{ sample.id }}" data-text="{{ sample.text | e }}">{{ sample.label }}</button>
+          {% endfor %}
+        </div>
+        <label for="chat">Order text</label>
+        <textarea id="chat" rows="8" placeholder="Paste a finished order here…"></textarea>
+        <div class="actions">
+          <button type="button" class="primary" id="preview-btn">Extract and check</button>
+        </div>
+      </section>
+      <section class="col" id="draft-col">
+        <h3>Draft and checker</h3>
+        <div id="draft-empty" class="empty">The extracted draft will appear here. If the checker fails, PayPal is not called.</div>
+        <div id="draft-panel" class="hidden">
+          <div id="check-box" class="check-box"></div>
+          <div class="field">
+            <label for="buyer-name">Buyer name</label>
+            <input id="buyer-name" type="text">
+          </div>
+          <div class="field">
+            <label for="buyer-email">Buyer email</label>
+            <input id="buyer-email" type="email">
+          </div>
+          <table class="lines" id="lines">
+            <thead>
+              <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Line</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="field">
+            <label for="stated-total">Stated total</label>
+            <input id="stated-total" type="text">
+          </div>
+          <p class="conversion" id="conversion"></p>
+          <div class="actions">
+            <button type="button" id="recheck-btn">Re-check edits</button>
+            <button type="button" class="primary" id="send-btn">Create PayPal invoice</button>
+          </div>
+          <p class="hint" id="send-status"></p>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section class="metrics-strip">
+    <h2>Published numbers</h2>
+    <p>
+      Price integrity: {{ full_metrics.price_integrity.held }} / {{ full_metrics.price_integrity.total }}.
+      Promo expiry: {{ full_metrics.promo_expiry.held }} / {{ full_metrics.promo_expiry.total }}.
+      Agreement gate false invoices: {{ full_metrics.agreement_gate.false_invoice_count }}.
+      Payment-proof fakes caught: {{ full_metrics.payment_proof.fake_caught }} / {{ full_metrics.payment_proof.fake_total }}.
+      v1 regression: {{ metrics.success_extracted_and_checked }} / {{ metrics.success_samples }} extract and pass;
+      {{ metrics.failure_blocked_by_checker }} / {{ metrics.failure_samples }} failures blocked.
+      <a href="/metrics">Full tables</a>
+    </p>
+  </section>
+
+  <footer>
+    <p>Sandbox only. No messages are sent to real customers.</p>
+  </footer>
+  <script src="/static/seller.js"></script>
+</body>
+</html>
