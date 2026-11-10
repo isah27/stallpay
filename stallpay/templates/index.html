@@ -95,6 +95,21 @@
         </dl>
         <a id="paypal-btn" class="paypal-btn" href="#" target="_blank" rel="noopener">Proceed with PayPal</a>
         <button type="button" id="already-paid-btn" class="already-paid-btn">I've already paid</button>
+        {% if sandbox_buyer %}
+        <div id="sandbox-buyer" class="sandbox-buyer">
+          <p class="sandbox-buyer-label">Sandbox test buyer (fake money)</p>
+          <div class="sandbox-row">
+            <span class="sandbox-key">email</span>
+            <code id="sandbox-email">{{ sandbox_buyer.email }}</code>
+            <button type="button" class="copy-btn" data-copy-target="sandbox-email">Copy</button>
+          </div>
+          <div class="sandbox-row">
+            <span class="sandbox-key">password</span>
+            <code id="sandbox-password">{{ sandbox_buyer.password }}</code>
+            <button type="button" class="copy-btn" data-copy-target="sandbox-password">Copy</button>
+          </div>
+        </div>
+        {% endif %}
         <p class="pay-status" id="pay-status" role="status"></p>
       </section>
     </section>

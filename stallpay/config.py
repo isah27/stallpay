@@ -49,6 +49,9 @@ PAYPAL_INVOICER_GIVEN_NAME = env("PAYPAL_INVOICER_GIVEN_NAME", "Amaka")
 PAYPAL_INVOICER_SURNAME = env("PAYPAL_INVOICER_SURNAME", "Okoye")
 # Optional default sandbox buyer used only when a demo shop needs an email.
 PAYPAL_BUYER_EMAIL = env("PAYPAL_BUYER_EMAIL", "buyer@stallpay.example")
+# Optional sandbox Personal buyer password. Shown on the order summary in
+# sandbox or mock mode so judges can pay with fake money. Never for production.
+PAYPAL_BUYER_PASSWORD = env("PAYPAL_BUYER_PASSWORD")
 
 PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
@@ -99,3 +102,26 @@ def rate_for(currency: str) -> Decimal:
 # Live PayPal is used only when explicitly requested *and* credentials are present.
 def paypal_is_live() -> bool:
     return PAYPAL_MODE == "live" and _has_secret("PAYPAL_CLIENT_ID") and _has_secret("PAYPAL_CLIENT_SECRET")
+
+
+def paypal_is_production() -> bool:
+    mode = (PAYPAL_MODE or "").strip().lower()
+    if mode in {"production", "prod", "live-production"}:
+        return True
+    base = (PAYPAL_API_BASE or "").strip().lower()
+    if "sandbox.paypal.com" in base:
+        return False
+    if "paypal.com" in base and "sandbox" not in base:
+        return True
+    return False
+
+
+def public_sandbox_buyer() -> dict[str, str] | None:
+    # Email and password for the on-page sandbox login note, or None to hide it.
+    if paypal_is_production():
+        return None
+    email = (PAYPAL_BUYER_EMAIL or "").strip()
+    password = (PAYPAL_BUYER_PASSWORD or "").strip()
+    if not email or not password:
+        return None
+    return {"email": email, "password": password}

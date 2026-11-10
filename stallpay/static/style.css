@@ -380,8 +380,55 @@ a { color: var(--green-dark); }
   cursor: pointer;
 }
 .already-paid-btn:hover { border-color: var(--green-dark); }
+.sandbox-buyer {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--line);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.sandbox-buyer-label { margin: 0 0 0.45rem; font-weight: 600; color: var(--ink); }
+.sandbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.25rem 0;
+}
+.sandbox-key {
+  min-width: 4.6rem;
+  text-transform: lowercase;
+  font-weight: 600;
+}
+.sandbox-buyer code {
+  flex: 1;
+  min-width: 0;
+  background: #f4f4f0;
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  color: var(--ink);
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+.copy-btn {
+  width: auto;
+  min-height: 28px;
+  margin: 0;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.copy-btn:hover { border-color: var(--green-dark); }
+.copy-btn.copied { border-color: var(--green-dark); color: var(--green-dark); }
 .pay-status { margin: 0.85rem 0 0; font-size: 0.95rem; }
 .pay-status.paid { color: var(--ok); font-weight: 600; }
 .pay-status.unpaid { color: var(--muted); }
 .order-card.paid-confirmed .already-paid-btn,
-.order-card.paid-confirmed .paypal-btn { display: none; }
+.order-card.paid-confirmed .paypal-btn,
+.order-card.paid-confirmed .sandbox-buyer { display: none; }

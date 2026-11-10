@@ -625,4 +625,39 @@ if (langSelect) {
   applyUI();
 }
 
+const sandboxBuyer = document.getElementById('sandbox-buyer');
+if (sandboxBuyer) {
+  sandboxBuyer.addEventListener('click', async (event) => {
+    const button = event.target.closest('.copy-btn');
+    if (!button) return;
+    const target = document.getElementById(button.dataset.copyTarget || '');
+    const value = target ? target.textContent.trim() : '';
+    if (!value) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const field = document.createElement('textarea');
+        field.value = value;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.left = '-9999px';
+        document.body.appendChild(field);
+        field.select();
+        document.execCommand('copy');
+        field.remove();
+      }
+      const previous = button.textContent;
+      button.textContent = 'Copied';
+      button.classList.add('copied');
+      window.setTimeout(() => {
+        button.textContent = previous || 'Copy';
+        button.classList.remove('copied');
+      }, 1500);
+    } catch (err) {
+      button.textContent = 'Copy failed';
+    }
+  });
+}
+
 prewarmShop();

@@ -121,7 +121,11 @@ def home(request: Request):
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"request": request, "shops": [shop.to_public() for shop in list_shops()]},
+        {
+            "request": request,
+            "shops": [shop.to_public() for shop in list_shops()],
+            "sandbox_buyer": config.public_sandbox_buyer(),
+        },
     )
 
 
