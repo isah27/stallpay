@@ -25,7 +25,7 @@ Seller tools, including the original Lagos sample orders, live on a separate `/s
 1. Open the site with no login and pick a shop. The buyer page is a clean shop chat in English: no step labels, no conversion rates, and no developer notes. Prices are shown in the shop’s own currency. Use the language picker if you want the shop in Español, हिन्दी, Pidgin, or Français.
 2. The agent greets the buyer in the selected language and lists the items it has. The buyer selects an item by tapping it, by typing a name in English or a local name, or by saying “1” or “the first one.”
 3. The agent states the price. If a promo is configured and still running, it quotes the list price and the promo price, and it names the real expiry. If no promo is configured, or the promo has ended, it just states the list price. Bargaining does not change the price; the agent says the promo price (or the list price) is already the best it can do.
-4. A PayPal invoice is created only when a buyer utterance clearly says yes to that item and price, for example “Okay I want it,” including in Spanish, Hindi, Pidgin, or French. A bare “ok” is not enough. Nothing about invoices or pay links is shown before that yes.
+4. A PayPal invoice is created only after a price has been quoted and the buyer agrees to that exact item and price. Everyday yeses such as “yes,” “sure,” “ok,” or “I would like to buy it” count, including Spanish, Hindi, Pidgin, and French. A question, a “not yet,” or a request for a cheaper price does not. Less common wording can still be read as a yes, but the invoice is always locked to the quoted catalog or promo price. Nothing about invoices or pay links is shown before that yes.
 5. After that yes, the chat is hidden. The buyer sees only an order summary (shop, item, quantity, list price, any promo discount with its real end time, the total in the shop’s currency, the USD amount the PayPal invoice is billed in, and the invoice number), a gold “Proceed with PayPal” button, and “I’ve already paid.” “I’ve already paid” checks the invoice with PayPal’s GET invoice API. If the status is PAID or MARKED_AS_PAID, the page shows a confirmation. Otherwise it says PayPal has not confirmed payment yet and keeps both buttons. There is no receipt or proof upload. PayPal’s status is the only way payment is confirmed.
 6. Seller tools at `/seller` show the invoice board (draft / sent / paid / reminder sent), reminders through PayPal, a morning briefing, published metrics, and a paste-a-chat path for finished transcripts.
 
@@ -43,7 +43,7 @@ cp .env.example .env        # leave PAYPAL_MODE=mock
 uvicorn stallpay.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first line is “Select the shop you want to buy from.” The shop is in English unless you change the language picker. Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say clearly that you want it, for example “Okay I want it.” Your messages appear in the chat immediately. After that yes, the chat is replaced by the order summary. Click **I’ve already paid** before paying — it should say PayPal has not confirmed payment yet. Then click **Proceed with PayPal**, complete payment (in mock mode, click **Pay now (mock)**), and click **I’ve already paid** again. The page should show that PayPal has confirmed the payment.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The first line is “Select the shop you want to buy from.” The shop is in English unless you change the language picker. Pick **Joyería Sofía**, choose the silver hoop earrings, read the promo and its end time, try a lower offer (the price should not change), then say yes — “yes,” “sure,” or “I would like to buy it” all work. Your messages appear in the chat immediately. After that yes, the chat is replaced by the order summary. Click **I’ve already paid** before paying — it should say PayPal has not confirmed payment yet. Then click **Proceed with PayPal**, complete payment (in mock mode, click **Pay now (mock)**), and click **I’ve already paid** again. The page should show that PayPal has confirmed the payment.
 
 Seller tools are at [http://127.0.0.1:8000/seller](http://127.0.0.1:8000/seller). Click **Tailor in Surulere — 2 native shirts**, then **Extract and check**, then **Create PayPal invoice**. **Write briefing** and **Play** read the morning summary.
 
@@ -120,9 +120,9 @@ Three cases around Amaka’s gele, whose promo ended on 9 November 2026 at 9:00 
 
 ### Agreement gate
 
-Chats with no explicit yes, a yes to a different price, a yes to different items, an ambiguous ok with no price, a yes that was only said by the agent, and one clear buyer yes after the catalog price was quoted.
+Chats with no yes, a yes to a different price, a yes to different items, a “yes but cheaper,” a yes that was only said by the agent, a clear buyer yes after the catalog price was quoted, and an “ok” after a quoted price.
 
-**False invoice rate: 0.** 6 / 6 cases behaved as expected. No PayPal create unless a buyer utterance clearly agrees to the selected item at the listed or promo price.
+**False invoice rate: 0.** 7 / 7 cases behaved as expected. No PayPal create unless the buyer agrees to the selected item at the listed or promo price.
 
 ### v1 regression
 
@@ -165,7 +165,7 @@ PUBLIC_BASE_URL=https://your-deployed-host.example
 
 Never commit `.env`, and never paste secrets into the repository, logs, or screenshots. `.env.example` lists the variable names with empty secret values.
 
-Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor. Optional cap variables, with the defaults above, are `LLM_VISITOR_DAILY_LIMIT`, `LLM_GLOBAL_DAILY_LIMIT`, `LLM_VISITOR_BURST_PER_MINUTE`, `LLM_MAX_INPUT_CHARS`, `LLM_MAX_TOKENS`, and `LLM_CHAT_TIMEOUT` (default 4.5 seconds).
+Optional model features use `LLM_API_KEY` (or `BASETEN_API_KEY` or `MODEL_API_KEY`) with `LLM_BASE_URL` and `LLM_MODEL`. Leave them blank to stay on the scripted agent and built-in extractor. Optional cap variables, with the defaults above, are `LLM_VISITOR_DAILY_LIMIT`, `LLM_GLOBAL_DAILY_LIMIT`, `LLM_VISITOR_BURST_PER_MINUTE`, `LLM_MAX_INPUT_CHARS`, `LLM_MAX_TOKENS`, `LLM_CHAT_TIMEOUT` (default 4.5 seconds), and `LLM_INTENT_TIMEOUT` (default 2 seconds).
 
 ## Hosting
 

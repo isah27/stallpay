@@ -10,7 +10,7 @@ from typing import Any
 from . import config
 from .checker import check_order
 from .languages import normalize_language
-from .limits import attach_usage_note
+from .limits import LlmCapped, attach_usage_note
 from .llm_client import LlmError, complete
 from .models import LineItem, ProposedOrder
 from .money import format_money, format_usd, money, parse_amounts, to_usd
@@ -23,23 +23,66 @@ SPANISH_MARKERS = ("hola", "por favor", "cuánto", "cuanto", "precio", "pesos", 
 HINDI_MARKERS = ("namaste", "kitna", "rupee", "rupaye", "please na", "theek", "bhai", "scarf", "stole", "final price", "chhodo")
 DEVANAGARI_RE = re.compile(r"[\u0900-\u097F]")
 
-INTENT_RE = re.compile(
+# Short yeses after a quoted price, including common typos and punctuation (folded first).
+_SHORT_AFFIRM_RE = re.compile(
+    r"^(yes|yeah|yep|yup|yea|yeh|yess|yees|yas|sure|ok|okay|okey|okie|k|kk|"
+    r"alright|all right|alrighty|alrite|deal|agreed|confirm|confirmed|proceed|"
+    r"si|s[ií]|claro|vale|oui|haan|han|ha ji|haan ji|theek hai|theek|"
+    r"no wahala)"
+    r"( please| thanks| thank you| sure| yeah| yes| ok| okay| dear)*"
+    r"( thing| then)?$",
+    re.IGNORECASE,
+)
+
+_PHRASE_AFFIRM_RE = re.compile(
     r"\b("
-    r"i want (it|them|this|that)|i('ll| will) (take|buy|pay|have|take them|take it)|"
-    r"okay[,.]? i want|ok(ay)?[,.]? (i want|i'll take|i will take|i'll buy|i will buy)|"
-    r"it's a deal|its a deal|we have a deal|agreed|i accept|"
-    r"i go (pay|buy|take)|na deal|i wan (buy|am|it)|"
-    r"de acuerdo|trato hecho|lo tomo|las tomo|lo quiero|las quiero|"
-    r"quiero (comprarlo|comprarlos|llevarmelo|llevarlo|llevarlos)|"
-    r"vale,? lo (pago|tomo)|pagar[eé]|"
-    r"theek hai|haan le (leti|lunga)|le lunga|le leti|main le (leti|lunga)|"
-    r"d'accord|c'est d'accord|je (le |les |l')?(prends|prendrai|achete|achète|achèterai)|"
-    r"je vais (le |les |l')?(prendre|acheter)|oui je (le |les )?(prends|veux)"
+    r"i('d| would) like to buy( it| them| this| that)?"
+    r"|i would like to( buy)?"
+    r"|i('ll| will) (take|buy|have)( it| them| this| that)?"
+    r"|i('ll| will) pay (it|them|this|that|for (it|them|this|that))"
+    r"|i want (it|them|this|that)"
+    r"|okay,? i want( it| them)?"
+    r"|ok(ay)?,? (i want|i'll take|i will take|i'll buy|i will buy)"
+    r"|buy it|take it|let's (do it|buy it|go|proceed)"
+    r"|sounds good|go ahead|i accept|it's a deal|its a deal|we have a deal"
+    r"|i go (buy|take)( am)?"
+    r"|na deal|i wan (buy|am|it)|no wahala"
+    r"|de acuerdo|trato hecho|lo tomo|las tomo|lo quiero|las quiero"
+    r"|quiero (comprarlo|comprarlos|llevarmelo|llevarlo|llevarlos)"
+    r"|vale,? lo (pago|tomo)|pagar[eé]"
+    r"|theek hai|haan le (leti|lunga)|le lunga|le leti|main le (leti|lunga)"
+    r"|ha ji|d'accord|c'est d'accord"
+    r"|je (le |les |l')?(prends|prendrai|achete|achète|achèterai)"
+    r"|je vais (le |les |l')?(prendre|acheter)"
+    r"|oui je (le |les )?(prends|veux)"
     r")\b",
     re.IGNORECASE,
 )
 
-SOFT_YES_RE = re.compile(r"\b(yes|sí|si|haan|han|ok|okay|vale|oui)\b", re.IGNORECASE)
+_DECLINE_RE = re.compile(
+    r"\b("
+    r"nope|nah|not yet|not now|never mind|nevermind|cancel|"
+    r"don't want|do not want|dont want|no thanks|no thank you|"
+    r"maybe later|not interested|i don't think so|i do not think so|"
+    r"no quiero|no lo quiero|nahi|nahin|pas maintenant|"
+    r"i no wan|i no go buy|"
+    r"no(?! wahala)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_COUNTER_RE = re.compile(
+    r"\b("
+    r"cheaper|discount|reduce|come down|too (much|expensive)|"
+    r"last price|lowball|only (have|got)|final price|"
+    r"otherwise i walk|take it or i walk|honou?r it|honou?r am|"
+    r"moins cher|trop (cher|co[uû]teux)|une remise|baisse(r)?|"
+    r"kitna kam|te doy|es mi oferta"
+    r")\b",
+    re.IGNORECASE,
+)
+
+INTENT_LABELS = frozenset({"agree", "decline", "question", "other"})
 
 BARGAIN_RE = re.compile(
     r"\b(last price|last last|lowball|discount|cheaper|reduce|come down|"
@@ -324,6 +367,8 @@ def handle_buyer_message(
     session.messages.append(ChatTurn("buyer", text))
     # Reply language follows the buyer's picker, default English.
     # Typed language is still understood for selection, bargaining, and agreement.
+    previous_ids = list(session.item_ids)
+    previous_quote = session.quoted_price
     selected = _update_selection(session, text, item_id=item_id)
     selling = session.selling_total()
     if selling is not None:
@@ -331,16 +376,31 @@ def handle_buyer_message(
 
     buyer_offer = _extract_buyer_offer(session, text)
     bargaining = _is_bargain_attempt(session, text, buyer_offer)
-    agreement = _extract_agreement(session, text)
+    # A first pick, or a switch to a different item, only quotes the price.
+    # Naming the already-quoted item again can still be a yes.
+    new_selection = bool(selected) and (previous_quote is None or list(session.item_ids) != previous_ids)
+
+    agreement = ""
+    if not new_selection:
+        # Common yeses are decided in code, before any model call, so they stay instant.
+        agreement = _extract_agreement(session, text, buyer_offer)
+        if (
+            not agreement
+            and session.quoted_price is not None
+            and session.item_ids
+            and not _blocks_agreement(session, text, buyer_offer)
+            and prefer_llm
+            and config.LLM_AVAILABLE
+        ):
+            if _classify_intent(session, text) == "agree":
+                agreement = text.strip()
     if agreement and session.quoted_price is not None:
         session.agreement_quote = agreement
 
-    # Item picks and first price quotes are deterministic. Skip the model so
-    # the reply can return immediately. Free-text turns may use the model
-    # with a short timeout and a scripted fallback.
-    quote_or_select = bool(item_id or selected) and not bargaining and not agreement
+    # Item picks, first quotes, and a decided yes skip the chat model.
+    skip_chat_model = bool(agreement) or (bool(item_id or selected) and not bargaining)
     reply = None
-    if prefer_llm and config.LLM_AVAILABLE and not quote_or_select:
+    if prefer_llm and config.LLM_AVAILABLE and not skip_chat_model:
         reply = _llm_reply(session)
         reply = _scrub_reply_prices(session, reply)
     if not reply:
@@ -483,32 +543,87 @@ def _is_bargain_attempt(session: ChatSession, text: str, buyer_offer: Decimal | 
     return False
 
 
-def _extract_agreement(session: ChatSession, text: str) -> str:
-    if session.quoted_price is None or not session.item_ids:
-        return ""
-    intent = bool(INTENT_RE.search(text))
-    soft = bool(SOFT_YES_RE.search(text))
-    if not intent and not soft:
-        return ""
-    offer = money(session.quoted_price)
-    raw_amounts = parse_amounts(text)
+def _fold_buyer_text(text: str) -> str:
+    lowered = (text or "").lower().replace("’", "'").replace("‘", "'").replace("`", "'")
+    cleaned = re.sub("[^a-z0-9'\u00c0-\u024f\u0900-\u097f]+", " ", lowered)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def _is_deterministic_yes(text: str) -> bool:
+    folded = _fold_buyer_text(text)
+    if not folded:
+        return False
+    return bool(_SHORT_AFFIRM_RE.match(folded) or _PHRASE_AFFIRM_RE.search(folded))
+
+
+def _listed_amounts(session: ChatSession, text: str) -> list[Decimal]:
+    offer = session.quoted_price
     qty = _extract_quantity(text)
-    amounts = []
-    for amount in raw_amounts:
+    amounts: list[Decimal] = []
+    for amount in parse_amounts(text):
         if qty is not None and amount == qty and amount <= 20:
             continue
+        if amount <= 20 and (offer is None or offer > 50):
+            continue
         amounts.append(money(amount))
-    if amounts:
-        if not any(abs(amount - offer) <= Decimal("0.05") for amount in amounts):
-            return ""
-        if not intent and soft:
-            # "yes ... MX$760" is an explicit priced yes.
-            return text.strip()
-        return text.strip()
-    if not intent:
-        # A bare "ok" or "yes" is not enough.
+    return amounts
+
+
+def _blocks_agreement(session: ChatSession, text: str, buyer_offer: Decimal | None = None) -> bool:
+    folded = _fold_buyer_text(text)
+    if "no wahala" not in folded and _DECLINE_RE.search(folded):
+        return True
+    if _COUNTER_RE.search(folded):
+        return True
+    if session.quoted_price is None:
+        return False
+    offer = money(session.quoted_price)
+    amounts = _listed_amounts(session, text)
+    if buyer_offer is not None:
+        amounts.append(money(buyer_offer))
+    if amounts and not any(abs(amount - offer) <= Decimal("0.05") for amount in amounts):
+        return True
+    return False
+
+
+def _extract_agreement(session: ChatSession, text: str, buyer_offer: Decimal | None = None) -> str:
+    if session.quoted_price is None or not session.item_ids:
         return ""
-    return text.strip()
+    if _blocks_agreement(session, text, buyer_offer):
+        return ""
+    if _is_deterministic_yes(text):
+        return text.strip()
+    return ""
+
+
+def _classify_intent(session: ChatSession, text: str) -> str | None:
+    shop = session.shop
+    selling = session.quoted_price or session.selling_total()
+    price = format_money(selling, shop.currency) if selling is not None else "not set"
+    system = (
+        "You classify a shop buyer's message after a price has already been quoted. "
+        "Reply with one word only: agree, decline, question, or other. "
+        "agree = the buyer is accepting the quoted item at the quoted price, "
+        "or asking to pay, to get the payment link, or to finish the purchase. "
+        "decline = the buyer is refusing or postponing. "
+        "question = the buyer is asking something without accepting the price. "
+        "other = anything else, including bargaining or asking for a different price. "
+        "Do not explain."
+    )
+    user = (
+        f"Quoted item: {_item_phrase(session)}. Quoted price: {price}. "
+        f"Buyer message: {text}"
+    )
+    try:
+        timeout = float(getattr(config, "LLM_INTENT_TIMEOUT", 2.0) or 2.0)
+        raw = complete(system, user, max_tokens=8, temperature=0, timeout=timeout)
+    except (LlmError, LlmCapped, Exception):
+        return None
+    token = re.sub(r"[^a-z]+", " ", (raw or "").strip().lower()).split()
+    if not token:
+        return None
+    label = token[0]
+    return label if label in INTENT_LABELS else None
 
 
 def _item_phrase(session: ChatSession) -> str:
@@ -594,24 +709,24 @@ def _scripted_reply(
         promo_on = any(item.promo_is_active() for item, _ in session.selected_items())
         if promo_on:
             return {
-                "pcm": f"That promo price na the best I fit do already. {_price_line(session)} If you wan am, just tell me clearly say you wan buy.",
-                "es": f"Ese precio de promo ya es el mejor que puedo hacer. {_price_line(session)} Si lo quieres, dímelo claro.",
-                "hi": f"Yeh promo price already best price hai. {_price_line(session)} Agar lena hai to clearly haan bol do.",
-                "fr": f"Ce prix promo est déjà le meilleur que je puisse faire. {_price_line(session)} Si vous le voulez, dites clairement que vous souhaitez l'acheter.",
-            }.get(lang, f"That promo price is already the best price I can do. {_price_line(session)} If you want it, just say clearly that you want to buy it.")
+                "pcm": f"That promo price na the best I fit do already. {_price_line(session)} You wan buy am?",
+                "es": f"Ese precio de promo ya es el mejor que puedo hacer. {_price_line(session)} ¿Te lo llevas?",
+                "hi": f"Yeh promo price already best price hai. {_price_line(session)} Lena hai kya?",
+                "fr": f"Ce prix promo est déjà le meilleur que je puisse faire. {_price_line(session)} Vous le voulez ?",
+            }.get(lang, f"That promo price is already the best price I can do. {_price_line(session)} Would you like to buy it?")
         return {
-            "pcm": f"The price na {format_money(selling, currency)}, I no fit come down. If you wan am, just tell me say you wan buy.",
-            "es": f"El precio es {format_money(selling, currency)}, no puedo bajarlo. Si lo quieres, dímelo claro.",
-            "hi": f"Price {format_money(selling, currency)} hai, main kam nahi kar sakti. Agar lena hai to clearly haan bol do.",
-            "fr": f"Le prix est {format_money(selling, currency)} — je ne peux pas descendre. Si vous le voulez, dites clairement que vous souhaitez l'acheter.",
-        }.get(lang, f"The price is {format_money(selling, currency)} — I can't go lower. If you want it, just say clearly that you want to buy it.")
+            "pcm": f"The price na {format_money(selling, currency)}, I no fit come down. You wan buy am?",
+            "es": f"El precio es {format_money(selling, currency)}, no puedo bajarlo. ¿Te lo llevas?",
+            "hi": f"Price {format_money(selling, currency)} hai, main kam nahi kar sakti. Lena hai kya?",
+            "fr": f"Le prix est {format_money(selling, currency)} — je ne peux pas descendre. Vous le voulez ?",
+        }.get(lang, f"The price is {format_money(selling, currency)} — I can't go lower. Would you like to buy it?")
 
     ask = {
-        "pcm": " If e catch you, tell me say you wan buy am.",
-        "es": " Si te encaja, dime que lo quieres.",
-        "hi": " Agar lena hai to clearly haan bol do.",
-        "fr": " Si cela vous convient, dites simplement que vous souhaitez l'acheter.",
-    }.get(lang, " If you want it, just say that you'd like to buy it.")
+        "pcm": " You wan buy am?",
+        "es": " ¿Te lo llevas?",
+        "hi": " Lena hai kya?",
+        "fr": " Vous le voulez ?",
+    }.get(lang, " Would you like to buy it?")
     return _price_line(session) + ask
 
 

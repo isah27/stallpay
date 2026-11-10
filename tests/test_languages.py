@@ -30,7 +30,7 @@ def _english_flow(shop_id, select_text, bargain_text, item_id, yes_text="Okay I 
     assert session.quoted_price == money(expected)
     assert close_if_agreed(session)["ready"] is False
     assert "best price" in bargained["reply"] or "can't go lower" in bargained["reply"]
-    blocked = handle_buyer_message(session, "ok", prefer_llm=False)
+    blocked = handle_buyer_message(session, "not yet", prefer_llm=False)
     assert close_if_agreed(session)["ready"] is False
     assert not blocked.get("invoice_ready")
     handle_buyer_message(session, yes_text, prefer_llm=False)
@@ -150,11 +150,11 @@ def test_api_language_picker_and_english_invoice(client):
     ).json()
     assert bargained["session"]["quoted_price"] == str(get_shop("mexico").item("earrings").selling_price())
     assert bargained["session"].get("pay_url") in {None, ""}
-    blocked = client.post(f"/api/chats/{sid}/messages", json={"text": "ok", "prefer_llm": False}).json()
+    blocked = client.post(f"/api/chats/{sid}/messages", json={"text": "not yet", "prefer_llm": False}).json()
     assert blocked["session"].get("pay_url") in {None, ""}
     yes = client.post(
         f"/api/chats/{sid}/messages",
-        json={"text": "Okay I want it", "prefer_llm": False},
+        json={"text": "ok", "prefer_llm": False},
     )
     body = yes.json()
     assert yes.status_code == 200

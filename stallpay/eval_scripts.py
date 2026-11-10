@@ -186,11 +186,18 @@ AGREEMENT_CASES: list[dict[str, Any]] = [
         "setup": "manual",
     },
     {
-        "id": "ambiguous_ok",
-        "label": "Ambiguous ok with no price",
-        "should_invoice": False,
+        "id": "pending_quote_ok",
+        "label": "Ok after a quoted price is agreement",
+        "should_invoice": True,
         "shop_id": "lagos",
         "messages": ["I want one native shirt.", "ok"],
+    },
+    {
+        "id": "yes_but_cheaper",
+        "label": "Yes but cheaper is not agreement",
+        "should_invoice": False,
+        "shop_id": "mexico",
+        "messages": ["I want the silver hoop earrings.", "yes but cheaper?"],
     },
     {
         "id": "agent_only_yes",

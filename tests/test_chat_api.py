@@ -12,13 +12,16 @@ def test_shops_and_chat_invoice_and_already_paid(client):
     expected = str(get_shop("jaipur").item("stole").selling_price())
     assert mid["session"]["quoted_price"] == expected
     assert mid["session"].get("pay_url") in {None, ""}
-    # Bare ok is not a priced yes, and must not auto-create an invoice.
-    blocked = client.post(f"/api/chats/{session_id}/messages", json={"text": "ok"}).json()
+    # A follow-up question after the quote must not create an invoice.
+    blocked = client.post(
+        f"/api/chats/{session_id}/messages",
+        json={"text": "is it available in blue?"},
+    ).json()
     assert blocked["session"].get("pay_url") in {None, ""}
     assert not blocked.get("invoiced")
     yes = client.post(
         f"/api/chats/{session_id}/messages",
-        json={"text": "Theek hai, I will take the cotton stole."},
+        json={"text": "ok"},
     )
     body = yes.json()
     assert yes.status_code == 200
