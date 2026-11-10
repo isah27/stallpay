@@ -85,7 +85,7 @@ _COUNTER_RE = re.compile(
 INTENT_LABELS = frozenset({"agree", "decline", "question", "other"})
 # muse-spark-1.3 uses most of a small max_tokens budget on hidden reasoning
 # and returns empty visible text. Leave room for that, then a short label.
-INTENT_MAX_TOKENS = 512
+INTENT_MAX_TOKENS = 1024
 
 _PAY_INTENT_RE = re.compile(
     r"\b("
@@ -837,7 +837,7 @@ def _llm_reply(session: ChatSession) -> str | None:
     history = session.transcript()
     try:
         timeout = float(getattr(config, "LLM_CHAT_TIMEOUT", 20.0) or 20.0)
-        text = complete(system, history, max_tokens=1000, temperature=0.4, timeout=timeout)
+        text = complete(system, history, max_tokens=2000, temperature=0.4, timeout=timeout)
     except (LlmError, Exception):
         return None
     cleaned = (text or "").strip().strip('"')

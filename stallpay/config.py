@@ -69,7 +69,7 @@ LLM_VISITOR_DAILY_LIMIT = _int_env("LLM_VISITOR_DAILY_LIMIT", 200)
 LLM_GLOBAL_DAILY_LIMIT = _int_env("LLM_GLOBAL_DAILY_LIMIT", 3000)
 LLM_VISITOR_BURST_PER_MINUTE = _int_env("LLM_VISITOR_BURST_PER_MINUTE", 30)
 LLM_MAX_INPUT_CHARS = _int_env("LLM_MAX_INPUT_CHARS", 12000)
-LLM_MAX_TOKENS = _int_env("LLM_MAX_TOKENS", 1000)
+LLM_MAX_TOKENS = _int_env("LLM_MAX_TOKENS", 2000)
 # Chat replies fall back to the scripted agent if the model is slower than this.
 # muse-spark-1.3 spends several hundred reasoning tokens before visible text,
 # so short budgets return empty content. Keep the on-page typing indicator up.
